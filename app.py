@@ -335,6 +335,6 @@ def get_console_logs(user_id, bot_index):
 
 # --- Main ---
 if __name__ == '__main__':
-    print("Pulling latest repo on start...")
-    print(git_pull())
+    # print("Pulling latest repo on start...")
+    # print(git_pull())
     app.run(host='0.0.0.0', port=30158, debug=False)
