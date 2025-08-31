@@ -9,6 +9,11 @@ import certifi
 
 app = Flask(__name__)
 
+# Config
+REPO_URL = "https://github.com/MDavidka/my-web.git"
+BRANCH = "feature/modern-file-editor"
+DEST_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # --- App Configuration ---
 app.config['MONGO_URI'] = "mongodb+srv://Cebelian12:testke12@cluster0.0p3pv8x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 app.config['MONGO_DB_NAME'] = "dash-bot"
@@ -21,6 +26,27 @@ if not os.path.exists(ROOT_DIR):
     os.makedirs(ROOT_DIR)
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
+
+def git_pull():
+    """
+    Pull latest changes or initialize repo if empty
+    """
+    git_dir = os.path.join(DEST_DIR, ".git")
+    try:
+        if not os.path.exists(git_dir):
+            # Initialize repo if folder exists but is empty
+            subprocess.run(["git", "init", DEST_DIR], capture_output=True, text=True)
+            subprocess.run(["git", "-C", DEST_DIR, "remote", "add", "origin", REPO_URL], capture_output=True, text=True)
+            subprocess.run(["git", "-C", DEST_DIR, "fetch", "--all"], capture_output=True, text=True)
+            result = subprocess.run(["git", "-C", DEST_DIR, "reset", "--hard", f"origin/{BRANCH}"], capture_output=True, text=True)
+            return result.stdout + result.stderr
+        else:
+            # Repo already exists, just fetch & reset
+            fetch = subprocess.run(["git", "-C", DEST_DIR, "fetch", "--all"], capture_output=True, text=True)
+            reset = subprocess.run(["git", "-C", DEST_DIR, "reset", "--hard", f"origin/{BRANCH}"], capture_output=True, text=True)
+            return fetch.stdout + fetch.stderr + "\n" + reset.stdout + reset.stderr
+    except Exception as e:
+        return str(e)
 
 # --- Database & Path Helpers ---
 def get_db():
@@ -232,4 +258,6 @@ def get_console_logs(user_id, bot_index):
 
 # --- Main ---
 if __name__ == '__main__':
+    print("Pulling latest repo on start...")
+    print(git_pull())
     app.run(host='0.0.0.0', port=30158, debug=False)
