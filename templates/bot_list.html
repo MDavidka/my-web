@@ -3,15 +3,34 @@
 {% block title %}Select a Bot{% endblock %}
 
 {% block content %}
-    <h1>Select a Bot</h1>
-    <div class="card-list">
+    <div class="dashboard-header">
+        <h1>My Bots</h1>
+        <p>Select a bot to manage its files and console.</p>
+    </div>
+
+    <div class="bot-card-grid">
         {% for bot in bots %}
-            <a href="{{ url_for('file_manager_index', user_id=bot.user_id, bot_index=bot.bot_index) }}" class="card">
-                <i data-feather="cpu"></i>
-                <span>Bot for User {{ bot.user_id }} (Index {{ bot.bot_index }})</span>
+            <a href="{{ url_for('file_manager_index', user_id=bot.user_id, bot_index=bot.bot_index) }}" class="bot-card">
+                <div class="card-header">
+                    <i data-feather="cpu" class="card-icon"></i>
+                    <h3 class="card-title">{{ bot.name }}</h3>
+                </div>
+                <div class="card-body">
+                    <div class="status-indicator">
+                        <span class="status-dot {{ bot.status.lower() }}"></span>
+                        <span class="status-text">{{ bot.status }}</span>
+                    </div>
+                    <p class="last-edited">Last Edited: {{ bot.last_modified }}</p>
+                </div>
+                <div class="card-footer">
+                    <span>Manage Bot</span>
+                    <i data-feather="arrow-right"></i>
+                </div>
             </a>
         {% else %}
-            <p>No bots found.</p>
+            <div class="card">
+                <p>No bots found. You can create one in your main dashboard.</p>
+            </div>
         {% endfor %}
     </div>
 {% endblock %}

@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import certifi
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -74,6 +75,22 @@ def get_safe_path(base_path, user_path=''):
         return None
     return safe_path
 
+def get_last_modified(path):
+    if not os.path.exists(path):
+        return None
+
+    latest_mtime = 0
+    for root, _, files in os.walk(path):
+        for file in files:
+            try:
+                mtime = os.path.getmtime(os.path.join(root, file))
+                if mtime > latest_mtime:
+                    latest_mtime = mtime
+            except OSError:
+                continue
+
+    return latest_mtime if latest_mtime > 0 else None
+
 # --- Main Routes ---
 @app.route('/')
 def list_bots():
@@ -85,7 +102,24 @@ def list_bots():
             if 'servers' in user and isinstance(user['servers'], list):
                 for i, server in enumerate(user['servers']):
                     if 'botToken' in server:
-                        bots.append({'user_id': user_id, 'bot_index': i})
+                        bot_key = (user_id, i)
+                        status = "RUNNING" if bot_key in bot_processes and bot_processes[bot_key].poll() is None else "STOPPED"
+
+                        bot_path, _, _ = get_bot_info(user_id, i)
+                        last_modified_timestamp = get_last_modified(bot_path)
+                        last_modified_str = "Never"
+                        if last_modified_timestamp:
+                            last_modified_str = datetime.fromtimestamp(last_modified_timestamp).strftime('%b %d, %Y at %I:%M %p')
+
+                        bot_name = server.get('name', f"Bot {i}")
+
+                        bots.append({
+                            'user_id': user_id,
+                            'bot_index': i,
+                            'name': bot_name,
+                            'status': status,
+                            'last_modified': last_modified_str
+                        })
     except Exception as e:
         print(f"DB Error: {e}")
     return render_template("bot_list.html", bots=bots)
@@ -152,40 +186,83 @@ def save_file(user_id, bot_index):
 @app.route('/bot/<user_id>/<int:bot_index>/create', methods=['POST'])
 def create_item(user_id, bot_index):
     bot_path, _, _ = get_bot_info(user_id, bot_index)
-    if not bot_path: return "Bot not found", 404
+    if not bot_path: return jsonify(success=False, message="Bot not found"), 404
 
-    path_rel = request.form.get('path', '')
-    base_path = get_safe_path(bot_path, path_rel)
-    if not base_path:
-        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+    item_type = request.form.get('type')
+    item_name = request.form.get('name')
+    base_rel_path = request.form.get('path', '')
 
-    if 'filename' in request.form and request.form['filename']:
-        new_path = os.path.join(base_path, request.form['filename'])
-        if not os.path.exists(new_path):
+    if not item_type or not item_name:
+        return jsonify(success=False, message="Missing parameters"), 400
+    if '/' in item_name or '..' in item_name:
+        return jsonify(success=False, message="Invalid name"), 400
+
+    base_abs_path = get_safe_path(bot_path, base_rel_path)
+    if not base_abs_path or not os.path.isdir(base_abs_path):
+        return jsonify(success=False, message="Invalid base path"), 400
+
+    new_path = os.path.join(base_abs_path, item_name)
+    if os.path.exists(new_path):
+        return jsonify(success=False, message=f"'{item_name}' already exists"), 400
+
+    try:
+        if item_type == 'file':
             with open(new_path, 'w') as f: f.write('')
-    elif 'foldername' in request.form and request.form['foldername']:
-        new_path = os.path.join(base_path, request.form['foldername'])
-        if not os.path.exists(new_path):
+        elif item_type == 'folder':
             os.makedirs(new_path)
+        else:
+            return jsonify(success=False, message="Invalid type"), 400
+        return jsonify(success=True, message=f"{item_type.capitalize()} '{item_name}' created")
+    except OSError as e:
+        return jsonify(success=False, message=str(e)), 500
 
-    return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+
+@app.route('/bot/<user_id>/<int:bot_index>/rename', methods=['POST'])
+def rename_item(user_id, bot_index):
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return jsonify(success=False, message="Bot not found"), 404
+
+    path_rel = request.form.get('path')
+    new_name = request.form.get('new_name')
+
+    if not path_rel or not new_name:
+        return jsonify(success=False, message="Missing parameters"), 400
+    if '/' in new_name or '..' in new_name:
+        return jsonify(success=False, message="Invalid name"), 400
+
+    old_path_abs = get_safe_path(bot_path, path_rel)
+    if not old_path_abs or not os.path.exists(old_path_abs):
+        return jsonify(success=False, message="Item not found"), 404
+
+    new_path_abs = os.path.join(os.path.dirname(old_path_abs), new_name)
+    if os.path.exists(new_path_abs):
+        return jsonify(success=False, message="An item with that name already exists"), 400
+
+    try:
+        os.rename(old_path_abs, new_path_abs)
+        return jsonify(success=True, message="Renamed successfully")
+    except OSError as e:
+        return jsonify(success=False, message=str(e)), 500
+
 
 @app.route('/bot/<user_id>/<int:bot_index>/delete', methods=['POST'])
 def delete_item(user_id, bot_index):
     bot_path, _, _ = get_bot_info(user_id, bot_index)
-    if not bot_path: return "Bot not found", 404
+    if not bot_path: return jsonify(success=False, message="Bot not found"), 404
 
     path_rel = request.form.get('path')
     path_abs = get_safe_path(bot_path, path_rel)
-    if not path_abs or path_abs == bot_path:
-        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+    if not path_abs or path_abs == bot_path or not os.path.exists(path_abs):
+        return jsonify(success=False, message="Item not found or is root"), 404
 
-    if os.path.isfile(path_abs):
-        os.remove(path_abs)
-    elif os.path.isdir(path_abs):
-        shutil.rmtree(path_abs)
-
-    return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+    try:
+        if os.path.isfile(path_abs):
+            os.remove(path_abs)
+        elif os.path.isdir(path_abs):
+            shutil.rmtree(path_abs)
+        return jsonify(success=True, message="Item deleted successfully")
+    except OSError as e:
+        return jsonify(success=False, message=str(e)), 500
 
 # --- Process Management ---
 @app.route('/bot/<user_id>/<int:bot_index>/start')

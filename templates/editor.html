@@ -1,33 +1,87 @@
-{% extends "layout.html" %}
+{% extends "file_manager.html" %}
 
-{% block title %}Editor{% endblock %}
+{% block title %}Editing: {{ path }}{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material-darker.min.css">
+    {{ super() }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/vibrant-ink.min.css">
+    <style>
+        /* Override layout padding for full-width editor */
+        .main-content {
+            padding: 0 !important;
+            position: relative; /* For positioning editor actions */
+            overflow: hidden;
+        }
+    </style>
 {% endblock %}
 
-{% block content %}
-    <h1>Edit File: {{ path }}</h1>
-    <form class="editor-form" action="{{ url_for('save_file', user_id=user_id, bot_index=bot_index) }}" method="post">
-        <input type="hidden" name="path" value="{{ path }}">
-        <textarea id="code-editor" name="content">{{ content }}</textarea>
-        <div class="editor-actions">
-            <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index) }}" class="btn">Cancel</a>
-            <button type="submit" class="btn btn-success">Save</button>
-        </div>
-    </form>
+{% block main_content %}
+<form class="editor-form" action="{{ url_for('save_file', user_id=user_id, bot_index=bot_index) }}" method="post">
+    <input type="hidden" name="path" value="{{ path }}">
+    <textarea id="code-editor" name="content">{{ content }}</textarea>
+    <div class="editor-actions">
+        <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index) }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-success"><i data-feather="save"></i> Save Changes</button>
+    </div>
+</form>
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
 <script>
-    CodeMirror.fromTextArea(document.getElementById('code-editor'), {
-        lineNumbers: true,
-        mode: 'python',
-        theme: 'material-darker',
-        lineWrapping: true
+    document.addEventListener('DOMContentLoaded', function() {
+        // Find the main header and hide it in editor view
+        const header = document.querySelector('.main-header');
+        if(header) {
+            header.style.display = 'none';
+        }
+
+        const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            lineNumbers: true,
+            mode: 'python',
+            theme: 'vibrant-ink',
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            tabSize: 4,
+            indentUnit: 4,
+        });
+
+        // The form and actions are inside the main content block now
+        const editorForm = document.querySelector('.editor-form');
+        const editorActions = document.querySelector('.editor-actions');
+        const codeMirrorWrapper = editor.getWrapperElement();
+
+        // Append the actions to the CodeMirror wrapper to ensure they are above the scrollbar
+        codeMirrorWrapper.appendChild(editorActions);
+        editorForm.style.height = '100%';
+        codeMirrorWrapper.style.height = '100%';
     });
 </script>
+<style>
+    .editor-form {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .CodeMirror {
+        flex-grow: 1;
+        height: auto;
+        border-radius: 0;
+        border: none;
+    }
+    .editor-actions {
+        position: absolute;
+        bottom: 25px;
+        right: 25px;
+        z-index: 100; /* Ensure it's above codemirror lines */
+        display: flex;
+        gap: 1rem;
+    }
+</style>
 {% endblock %}

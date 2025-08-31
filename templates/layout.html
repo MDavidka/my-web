@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Bot Manager{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
 </head>
@@ -11,10 +14,128 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+    <div id="console-container" class="console-container hidden">
+        <div class="console-header" id="console-header-drag-handle">
+            <div class="console-dots">
+                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            </div>
+            <span class="console-title">Console</span>
+            <div class="console-actions">
+                <button id="console-close-btn" class="btn-icon" title="Close Console"><i data-feather="x"></i></button>
+            </div>
+        </div>
+        <pre id="console-output" class="console-output">Welcome to the console.</pre>
+    </div>
+
+    <button id="console-toggle-btn" class="fab" title="Toggle Console">
+        <i data-feather="terminal"></i>
+    </button>
+
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <script>
         feather.replace();
     </script>
-    {% block scripts %}{% endblock %}
+    {% block scripts %}
+    <script>
+        // --- GLOBAL FLOATING CONSOLE LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const consoleContainer = document.getElementById('console-container');
+            const consoleToggleBtn = document.getElementById('console-toggle-btn');
+            const consoleCloseBtn = document.getElementById('console-close-btn');
+            const consoleHeader = document.getElementById('console-header-drag-handle');
+            const consoleOutput = document.getElementById('console-output');
+
+            if (!consoleContainer) return; // Exit if console not in DOM
+
+            // --- Visibility ---
+            consoleToggleBtn.addEventListener('click', () => {
+                consoleContainer.classList.toggle('hidden');
+                if (!consoleContainer.classList.contains('hidden')) {
+                    startLogPolling(); // Start polling when opened
+                }
+            });
+            consoleCloseBtn.addEventListener('click', () => consoleContainer.classList.add('hidden'));
+
+            // --- Dragging ---
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            const onMouseDown = (e) => {
+                isDragging = true;
+                offsetX = e.clientX - consoleContainer.offsetLeft;
+                offsetY = e.clientY - consoleContainer.offsetTop;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                consoleHeader.style.cursor = 'grabbing';
+            };
+
+            const onMouseMove = (e) => {
+                if (!isDragging) return;
+                // Constrain movement within the viewport
+                const x = Math.min(window.innerWidth - consoleContainer.offsetWidth, Math.max(0, e.clientX - offsetX));
+                const y = Math.min(window.innerHeight - consoleContainer.offsetHeight, Math.max(0, e.clientY - offsetY));
+                consoleContainer.style.left = `${x}px`;
+                consoleContainer.style.top = `${y}px`;
+            };
+
+            const onMouseUp = () => {
+                isDragging = false;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                consoleHeader.style.cursor = 'move';
+            };
+
+            consoleHeader.addEventListener('mousedown', onMouseDown);
+
+            // --- Log Polling ---
+            let logPollInterval = null;
+            let lastLogSize = 0;
+
+            function startLogPolling() {
+                const layout = document.querySelector('[data-user-id][data-bot-index]');
+                if (!layout) {
+                    consoleOutput.textContent = "Console is only available in a bot's file manager.";
+                    return;
+                }
+
+                const userId = layout.dataset.userId;
+                const botIndex = layout.dataset.botIndex;
+
+                if (logPollInterval) clearInterval(logPollInterval); // Clear previous interval
+
+                consoleOutput.textContent = 'Connecting to console...\n'; // Reset console
+                lastLogSize = 0;
+
+                const poll = async () => {
+                    const url = `/bot/${userId}/${botIndex}/logs?size=${lastLogSize}`;
+                    try {
+                        const res = await fetch(url);
+                        if(res.status === 404) {
+                             consoleOutput.textContent += '\nLog file not found. Run the bot to create it.';
+                             clearInterval(logPollInterval);
+                             return;
+                        }
+                        const data = await res.json();
+                        if (data.log_data) {
+                            // If it was the first poll, clear the "connecting" message
+                            if (consoleOutput.textContent === 'Connecting to console...\n') {
+                                consoleOutput.textContent = '';
+                            }
+                            consoleOutput.textContent += data.log_data;
+                            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                        }
+                        lastLogSize = data.log_size;
+                    } catch (e) {
+                        console.error("Log poll failed:", e);
+                        clearInterval(logPollInterval);
+                    }
+                };
+
+                logPollInterval = setInterval(poll, 2500);
+                poll();
+            }
+        });
+    </script>
+    {% endblock %}
 </body>
 </html>

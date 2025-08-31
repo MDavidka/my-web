@@ -3,109 +3,305 @@
 {% block title %}File Manager{% endblock %}
 
 {% block content %}
-    <div class="header">
-        <h1>File Manager</h1>
-        <div class="bot-controls">
-            <a href="{{ url_for('start_bot', user_id=user_id, bot_index=bot_index) }}" class="btn btn-success"><i data-feather="play"></i> Start</a>
-            <a href="{{ url_for('stop_bot', user_id=user_id, bot_index=bot_index) }}" class="btn btn-danger"><i data-feather="stop-circle"></i> Stop</a>
+<div class="file-manager-layout" data-user-id="{{ user_id }}" data-bot-index="{{ bot_index }}">
+    <!-- Sidebar for File Tree -->
+    <aside class="file-sidebar">
+        <div class="sidebar-header">
+            <h3>File Explorer</h3>
+            <div class="sidebar-actions">
+                <!-- FABs will be handled via JS -->
+                <button class="btn-icon" id="new-file-btn" title="New File"><i data-feather="file-plus"></i></button>
+                <button class="btn-icon" id="new-folder-btn" title="New Folder"><i data-feather="folder-plus"></i></button>
+            </div>
         </div>
-    </div>
-    <div class="status-bar">
-        <span>Status: <b id="bot-status">...</b></span>
-        <span>RAM: <b id="ram-usage">...</b></span>
-    </div>
-
-    <div class="file-explorer">
-        <div class="card">
-            <h2>Files</h2>
+        <div class="file-tree-container">
             {% macro render_tree(items) %}
-                <ul class="file-list">
+                <ul class="file-tree">
                     {% for item in items %}
-                        <li>
+                        <li class="tree-item {% if item.is_dir %}is-folder{% endif %}" data-path="{{ item.path }}" data-name="{{ item.name }}">
                             {% if item.is_dir %}
-                                <i data-feather="folder"></i>
-                                <a href="#" class="folder-toggle">{{ item.name }}</a>
-                                <div class="nested">
+                                <div class="tree-item-content folder-toggle">
+                                    <i data-feather="chevron-right" class="chevron"></i>
+                                    <i data-feather="folder" class="icon"></i>
+                                    <span>{{ item.name }}</span>
+                                </div>
+                                <div class="nested-tree">
                                     {{ render_tree(item.children) }}
                                 </div>
                             {% else %}
-                                <i data-feather="file-text"></i>
-                                <a href="{{ url_for('edit_file', user_id=user_id, bot_index=bot_index, path=item.path) }}">{{ item.name }}</a>
+                                <a href="{{ url_for('edit_file', user_id=user_id, bot_index=bot_index, path=item.path) }}" class="tree-item-content">
+                                    <i data-feather="file-text" class="icon"></i>
+                                    <span>{{ item.name }}</span>
+                                </a>
                             {% endif %}
-                            <form action="{{ url_for('delete_item', user_id=user_id, bot_index=bot_index) }}" method="post" onsubmit="return confirm('Delete this item?');">
-                                <input type="hidden" name="path" value="{{ item.path }}">
-                                <button type="submit" class="btn-delete"><i data-feather="trash-2"></i></button>
-                            </form>
                         </li>
                     {% endfor %}
                 </ul>
             {% endmacro %}
             {{ render_tree(items) }}
         </div>
+    </aside>
 
-        <div class="card">
-            <h2>Create</h2>
-            <form action="{{ url_for('create_item', user_id=user_id, bot_index=bot_index) }}" method="post">
-                <input type="text" name="filename" placeholder="New file name...">
-                <button type="submit" class="btn">Create File</button>
-            </form>
-            <hr>
-            <form action="{{ url_for('create_item', user_id=user_id, bot_index=bot_index) }}" method="post">
-                <input type="text" name="foldername" placeholder="New folder name...">
-                <button type="submit" class="btn">Create Folder</button>
-            </form>
+    <!-- Main Content Area -->
+    <main class="main-content">
+        {% block main_content %}
+        <header class="main-header">
+             <div class="bot-info">
+                <h2>Bot Control</h2>
+                <div id="bot-status-display" class="status-badge">
+                    Status: <b id="bot-status">...</b> (<b id="ram-usage">...</b> MB)
+                </div>
+             </div>
+             <div class="bot-controls">
+                <a href="{{ url_for('start_bot', user_id=user_id, bot_index=bot_index) }}" class="btn btn-success"><i data-feather="play"></i><span>Start</span></a>
+                <a href="{{ url_for('stop_bot', user_id=user_id, bot_index=bot_index) }}" class="btn btn-danger"><i data-feather="stop-circle"></i><span>Stop</span></a>
+            </div>
+        </header>
+        <div class="content-placeholder">
+            <div class="placeholder-icon"><i data-feather="edit-3"></i></div>
+            <h2>Select a file to begin editing</h2>
+            <p>Choose a file from the explorer on the left, or create a new file or folder.</p>
         </div>
-    </div>
+        {% endblock %}
+    </main>
+</div>
 
-    <div class="card">
-        <h2>Console</h2>
-        <pre id="console-output">Loading console...</pre>
-    </div>
+<!-- Context Menu -->
+<div id="context-menu" class="context-menu">
+    <ul>
+        <li id="context-edit">Edit</li>
+        <li id="context-rename">Rename</li>
+        <li id="context-delete">Delete</li>
+    </ul>
+</div>
+
+<!-- Create/Rename Modal -->
+<div id="modal-backdrop" class="modal-backdrop hidden"></div>
+<div id="create-modal" class="modal hidden">
+    <h3 id="modal-title">Create New</h3>
+    <form id="create-form">
+        <input type="text" id="modal-input" name="name" required autocomplete="off">
+        <div class="modal-actions">
+            <button type="button" id="modal-cancel" class="btn btn-secondary">Cancel</button>
+            <button type="submit" id="modal-submit" class="btn">Create</button>
+        </div>
+    </form>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Status and Log Polling
+    // --- STATE ---
+    let activeItem = null; // The tree-item element that was right-clicked
+    let currentFolderPath = ''; // Path for creating new items in the current folder
+
+    // --- SELECTORS ---
+    const contextMenu = document.getElementById('context-menu');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modal = document.getElementById('create-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalForm = document.getElementById('create-form');
+    const modalInput = document.getElementById('modal-input');
+    const modalSubmit = document.getElementById('modal-submit');
+    const fileTreeContainer = document.querySelector('.file-tree-container');
+
+    // --- API HELPERS ---
+    const showToast = (message, isError = false) => {
+        // A simple toast notification function. In a real app, use a library.
+        const toast = document.createElement('div');
+        toast.className = `toast ${isError ? 'error' : ''}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
+
+    const apiCall = async (url, body) => {
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(body)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'API call failed');
+            return data;
+        } catch (error) {
+            showToast(error.message, true);
+            return null;
+        }
+    };
+
+    // --- MODAL LOGIC ---
+    const showModal = (title, placeholder, buttonText, value = '') => {
+        modalTitle.textContent = title;
+        modalInput.placeholder = placeholder;
+        modalInput.value = value;
+        modalSubmit.textContent = buttonText;
+        modal.classList.remove('hidden');
+        modalBackdrop.classList.remove('hidden');
+        modalInput.focus();
+    };
+
+    const hideModal = () => {
+        modal.classList.add('hidden');
+        modalBackdrop.classList.add('hidden');
+        modalForm.reset();
+        modalForm.onsubmit = null;
+    };
+
+    document.getElementById('modal-cancel').addEventListener('click', hideModal);
+    modalBackdrop.addEventListener('click', hideModal);
+
+    // --- CONTEXT MENU LOGIC ---
+    const showContextMenu = (e) => {
+        e.preventDefault();
+        activeItem = e.target.closest('.tree-item');
+        if (!activeItem) return;
+
+        contextMenu.style.top = `${e.clientY}px`;
+        contextMenu.style.left = `${e.clientX}px`;
+        contextMenu.classList.remove('hidden');
+
+        // Disable 'Edit' for folders
+        const isFolder = activeItem.classList.contains('is-folder');
+        document.getElementById('context-edit').style.display = isFolder ? 'none' : 'block';
+    };
+
+    const hideContextMenu = () => {
+        contextMenu.classList.add('hidden');
+        activeItem = null;
+    };
+
+    fileTreeContainer.addEventListener('contextmenu', showContextMenu);
+    document.addEventListener('click', hideContextMenu);
+
+    // --- ACTIONS ---
+    const handleCreate = (type) => {
+        let path = '';
+        if (activeItem && activeItem.classList.contains('is-folder')) {
+            path = activeItem.dataset.path;
+        }
+        showModal(`Create New ${type}`, `Enter ${type} name...`, 'Create');
+        modalForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const name = modalInput.value;
+            const res = await apiCall(
+                "{{ url_for('create_item', user_id=user_id, bot_index=bot_index) }}",
+                { type, name, path }
+            );
+            if (res) {
+                showToast(res.message);
+                hideModal();
+                // Simple refresh for now. A better implementation would dynamically add the node.
+                window.location.reload();
+            }
+        };
+    };
+
+    const handleRename = () => {
+        if (!activeItem) return;
+        const oldName = activeItem.dataset.name;
+        const path = activeItem.dataset.path;
+        showModal('Rename Item', '', 'Rename', oldName);
+        modalForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const new_name = modalInput.value;
+            if (new_name === oldName) return hideModal();
+            const res = await apiCall(
+                "{{ url_for('rename_item', user_id=user_id, bot_index=bot_index) }}",
+                { path, new_name }
+            );
+            if (res) {
+                showToast(res.message);
+                hideModal();
+                window.location.reload();
+            }
+        };
+    };
+
+    const handleDelete = async () => {
+        if (!activeItem) return;
+        const path = activeItem.dataset.path;
+        const name = activeItem.dataset.name;
+        if (!confirm(`Are you sure you want to delete '${name}'?`)) return;
+
+        const res = await apiCall(
+            "{{ url_for('delete_item', user_id=user_id, bot_index=bot_index) }}",
+            { path }
+        );
+        if (res) {
+            showToast(res.message);
+            activeItem.remove();
+            activeItem = null;
+        }
+    };
+
+    // --- EVENT BINDING ---
+    document.getElementById('new-file-btn').addEventListener('click', () => handleCreate('file'));
+    document.getElementById('new-folder-btn').addEventListener('click', () => handleCreate('folder'));
+
+    document.getElementById('context-edit').addEventListener('click', () => {
+        if (activeItem) activeItem.querySelector('a').click();
+    });
+    document.getElementById('context-rename').addEventListener('click', handleRename);
+    document.getElementById('context-delete').addEventListener('click', handleDelete);
+
+    // --- INITIALIZATION (from previous script) ---
     const botStatus = document.getElementById('bot-status');
     const ramUsage = document.getElementById('ram-usage');
-    const consoleOutput = document.getElementById('console-output');
+    const botStatusDisplay = document.getElementById('bot-status-display');
 
     async function updateStatus() {
-        const res = await fetch("{{ url_for('get_bot_status', user_id=user_id, bot_index=bot_index) }}");
-        const data = await res.json();
-        botStatus.textContent = data.status;
-        ramUsage.textContent = `${data.ram_usage} MB`;
-        botStatus.className = data.status.toLowerCase();
-    }
-
-    let lastLogSize = 0;
-    async function updateLogs() {
-        const res = await fetch(`{{ url_for('get_console_logs', user_id=user_id, bot_index=bot_index) }}?size=${lastLogSize}`);
-        const data = await res.json();
-        if (data.log_data) {
-            consoleOutput.textContent += data.log_data;
-            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        try {
+            const res = await fetch("{{ url_for('get_bot_status', user_id=user_id, bot_index=bot_index) }}");
+            if (!res.ok) throw new Error('Status fetch failed');
+            const data = await res.json();
+            botStatus.textContent = data.status;
+            ramUsage.textContent = data.ram_usage;
+            botStatusDisplay.classList.remove('running', 'stopped');
+            if (data.status) botStatusDisplay.classList.add(data.status.toLowerCase());
+        } catch (error) {
+            console.error("Error updating status:", error);
+            botStatus.textContent = 'Error';
         }
-        lastLogSize = data.log_size;
     }
-
     setInterval(updateStatus, 3000);
-    setInterval(updateLogs, 3000);
     updateStatus();
-    updateLogs();
 
-    // Collapsible file tree
     document.querySelectorAll('.folder-toggle').forEach(toggle => {
         toggle.addEventListener('click', e => {
             e.preventDefault();
-            toggle.classList.toggle('open');
-            const nestedList = toggle.parentElement.querySelector('.nested');
-            if (nestedList) {
-                nestedList.classList.toggle('active');
-            }
+            const parentLi = toggle.closest('.tree-item');
+            parentLi.classList.toggle('open');
         });
     });
 });
 </script>
+<style>
+/* Simple Toast styling */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--success-color);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    z-index: 2000;
+    opacity: 0;
+    animation: toast-fade-in-out 3s ease-in-out;
+}
+.toast.error {
+    background-color: var(--danger-color);
+}
+@keyframes toast-fade-in-out {
+    0%, 100% { opacity: 0; }
+    10%, 90% { opacity: 1; }
+}
+</style>
 {% endblock %}
