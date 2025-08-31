@@ -489,14 +489,18 @@ def file_manager_index(user_id, bot_index):
         return "Bot not found", 404
 
     # Auto-generate main.py if it doesn't exist
-    if not os.path.exists(bot_path):
-        os.makedirs(bot_path)
+    try:
+        if not os.path.exists(bot_path):
+            os.makedirs(bot_path, exist_ok=True)
 
-    main_py_path = os.path.join(bot_path, 'main.py')
-    if not os.path.exists(main_py_path):
-        main_py_content = f'"""\nAuto-generated main.py for your bot.\nYour token is securely passed as an environment variable.\n"""\n\nimport os\n\nTOKEN = "{bot_token}"\n\nprint(f"Bot with token prefix {TOKEN[:8]}... is starting!")\n\n# Add your discord.py code here\n'
-        with open(main_py_path, 'w', encoding='utf-8') as f:
-            f.write(main_py_content)
+        main_py_path = os.path.join(bot_path, 'main.py')
+        if not os.path.exists(main_py_path):
+            main_py_content = f'"""\nAuto-generated main.py for your bot.\nYour token is securely passed as an environment variable.\n"""\n\nimport os\n\nTOKEN = "{bot_token}"\n\nprint(f"Bot with token prefix {TOKEN[:8]}... is starting!")\n\n# Add your discord.py code here\n'
+            with open(main_py_path, 'w', encoding='utf-8') as f:
+                f.write(main_py_content)
+    except OSError as e:
+        print(f"Error during initial setup for bot {user_id}/{bot_index}: {e}")
+        return "<h1>Error: File System Permission Denied</h1><p>The application was unable to create necessary files or directories. Please check the server permissions.</p>", 500
 
     # File listing logic (adapted from old index route)
     req_path = request.args.get('path', '')
@@ -557,9 +561,13 @@ def create_file(user_id, bot_index):
 
     file_path = os.path.join(safe_path, filename)
 
-    if not os.path.exists(file_path):
-        with open(file_path, 'w') as f:
-            f.write('')
+    try:
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as f:
+                f.write('')
+    except OSError as e:
+        print(f"Error creating file {file_path}: {e}")
+        # Optionally, flash a message to the user about the error
 
     return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=path))
 
@@ -580,8 +588,12 @@ def create_folder(user_id, bot_index):
 
     folder_path = os.path.join(safe_path, foldername)
 
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+    try:
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+    except OSError as e:
+        print(f"Error creating folder {folder_path}: {e}")
+        # Optionally, flash a message to the user about the error
 
     return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=path))
 
@@ -626,8 +638,9 @@ def save_file(user_id, bot_index):
     try:
         with open(safe_path, 'w', encoding='utf-8') as f:
             f.write(content)
-    except Exception as e:
+    except OSError as e:
         print(f"Error writing to file {safe_path}: {e}")
+        # Optionally, flash a message to the user
         pass
 
     parent_path = os.path.dirname(path)
@@ -656,6 +669,7 @@ def delete_item(user_id, bot_index):
             shutil.rmtree(safe_path)
     except OSError as e:
         print(f"Error deleting {safe_path}: {e}")
+        # Optionally, flash a message to the user
         pass
 
     return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=parent_path))
@@ -778,4 +792,4 @@ if __name__ == '__main__':
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
 
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=30158, debug=False)
