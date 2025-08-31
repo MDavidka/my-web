@@ -14,6 +14,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
+# Config
+REPO_URL = "https://github.com/MDavidka/my-web.git"
+BRANCH = "feature/modern-file-editor"
+DEST_DIR = "/home/container"
+
 # --- App Configuration ---
 app.config['MONGO_URI'] = "mongodb+srv://Cebelian12:testke12@cluster0.0p3pv8x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 app.config['MONGO_DB_NAME'] = "dash-bot"
@@ -128,8 +133,8 @@ def register():
         password = request.form.get('password')
 
         if db.users.find_one({'email': email}):
-            flash('Email address already registered.', 'warning')
-            return redirect(url_for('register'))
+            flash('You already have an account. Please log in.', 'warning')
+            return redirect(url_for('login'))
 
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = {
@@ -571,9 +576,34 @@ def api_stop_bot(bot_index):
 def api_docs():
     return render_template('api_docs.html')
 
+def git_pull():
+    """
+    Pull latest changes or initialize repo if empty
+    """
+    git_dir = os.path.join(DEST_DIR, ".git")
+    try:
+        if not os.path.exists(git_dir):
+            # Initialize repo if folder exists but is empty
+            subprocess.run(["git", "init", DEST_DIR], capture_output=True, text=True)
+            subprocess.run(["git", "-C", DEST_DIR, "remote", "add", "origin", REPO_URL], capture_output=True, text=True)
+            subprocess.run(["git", "-C", DEST_DIR, "fetch", "--all"], capture_output=True, text=True)
+            result = subprocess.run(["git", "-C", DEST_DIR, "reset", "--hard", f"origin/{BRANCH}"], capture_output=True, text=True)
+            return result.stdout + result.stderr
+        else:
+            # Repo already exists, just fetch & reset
+            fetch = subprocess.run(["git", "-C", DEST_DIR, "fetch", "--all"], capture_output=True, text=True)
+            reset = subprocess.run(["git", "-C", DEST_DIR, "reset", "--hard", f"origin/{BRANCH}"], capture_output=True, text=True)
+            return fetch.stdout + fetch.stderr + "\n" + reset.stdout + reset.stderr
+    except Exception as e:
+        return str(e)
+
+@app.route("/update", methods=["GET"])
+def update_repo():
+    output = git_pull()
+    return jsonify({"status": "done", "output": output})
 
 # --- Main ---
 if __name__ == '__main__':
-    # print("Pulling latest repo on start...")
-    # print(git_pull())
+    print("Pulling latest repo on start...")
+    print(git_pull())
     app.run(host='0.0.0.0', port=30158, debug=False)
