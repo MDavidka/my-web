@@ -73,54 +73,58 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Manager</title>
     <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: rgba(255, 255, 255, 0.65);
+            --text-color: #333;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --link-color: #0056b3;
+            --icon-color-folder: #0056b3;
+            --icon-color-file: #555;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(to right, #232526, #414345);
-            color: #e0e0e0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
             padding: 20px;
         }
         .container {
             max-width: 900px;
             margin: auto;
-            background: rgba(30, 30, 30, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: var(--container-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-radius: 15px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px 0 var(--shadow-color);
         }
-        h1 {
-            color: #fff;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding-bottom: 10px;
+        h1, h2 {
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
             margin-bottom: 20px;
-            font-weight: 300;
+            font-weight: 400;
         }
-        .breadcrumb {
-            margin-bottom: 20px;
-        }
+        .breadcrumb { margin-bottom: 20px; }
         .breadcrumb a {
-            color: #00aaff;
+            color: var(--link-color);
             text-decoration: none;
+            font-weight: 500;
         }
-        .file-list {
-            list-style: none;
-            padding: 0;
-        }
+        .file-list { list-style: none; padding: 0; }
         .file-item {
             display: flex;
             align-items: center;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             transition: background-color 0.2s;
         }
-        .file-item:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-        }
+        .file-item:hover { background-color: rgba(0, 0, 0, 0.05); }
         .file-item a {
-            color: #e0e0e0;
+            color: var(--text-color);
             text-decoration: none;
             flex-grow: 1;
             margin-left: 10px;
@@ -129,75 +133,91 @@ HTML_TEMPLATE = """
             width: 20px;
             height: 20px;
         }
-        .folder { color: #58a6ff; }
-        .file { color: #c9d1d9; }
+        .folder { color: var(--icon-color-folder); }
+        .file { color: var(--icon-color-file); }
 
-        .actions {
-            margin-top: 20px;
-        }
+        .actions { margin-top: 25px; }
 
         input[type="text"] {
-            background-color: rgba(0,0,0,0.2);
-            color: #eee;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px 12px;
-            border-radius: 5px;
+            background-color: rgba(255,255,255,0.5);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            border-radius: 8px;
             margin-right: 10px;
+            box-sizing: border-box;
         }
 
-        button {
-            background-color: #333;
-            color: #eee;
-            border: 1px solid #555;
-            padding: 8px 12px;
-            border-radius: 5px;
+        button, .btn-start, .btn-stop {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 10px 15px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
         }
-        button:hover {
-            background-color: #444;
+        button:hover, .btn-start:hover, .btn-stop:hover {
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         .delete-btn {
-            background: #d12d2d;
-            color: white;
-            border: none;
+            background: rgba(255, 107, 107, 0.6);
         }
         .delete-btn:hover {
-            background: #b02121;
+            background: rgba(255, 107, 107, 0.8);
         }
 
         .console-container {
             margin-top: 20px;
-            background-color: #0d1117;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            padding: 15px;
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
         }
 
         #console-output {
             height: 300px;
             overflow-y: auto;
-            background-color: transparent;
-            color: #c9d1d9;
+            background-color: #f7f7f7;
+            color: #333;
             font-family: "Courier New", Courier, monospace;
             white-space: pre-wrap;
             word-wrap: break-word;
+            padding: 15px;
+            border-radius: 8px;
         }
 
         .status-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
             margin-bottom: 20px;
         }
+        #bot-status { color: #ffa500; }
+        #bot-status.running { color: #28a745; }
 
-        #bot-status {
-            color: #ffc107;
-        }
-
-        #bot-status.running {
-            color: #28a745;
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .status-bar { flex-direction: column; align-items: flex-start; }
+            .status-bar > div:first-child { margin-bottom: 15px; }
+            .actions form {
+                display: block;
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            .actions input[type="text"], .actions button {
+                width: 100%;
+                margin-right: 0;
+            }
         }
     </style>
 </head>
@@ -316,59 +336,79 @@ EDITOR_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit File</title>
     <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: rgba(255, 255, 255, 0.65);
+            --text-color: #333;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --link-color: #0056b3;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(to right, #232526, #414345);
-            color: #e0e0e0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
             padding: 20px;
         }
         .container {
             max-width: 900px;
             margin: auto;
-            background: rgba(30, 30, 30, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: var(--container-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-radius: 15px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px 0 var(--shadow-color);
         }
         h1 {
-            color: #fff;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding-bottom: 10px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
             margin-bottom: 20px;
-            font-weight: 300;
+            font-weight: 400;
         }
         textarea {
-            width: calc(100% - 22px); /* 100% - padding and border */
+            width: 100%;
             height: 60vh;
-            background-color: rgba(0,0,0,0.2);
-            color: #f0f0f0;
-            border: 1px solid rgba(255,255,255,0.2);
+            background-color: #fff;
+            color: #222;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 10px;
+            padding: 15px;
             font-family: "Courier New", Courier, monospace;
             box-sizing: border-box;
+            font-size: 14px;
+        }
+        .editor-actions {
+            margin-top: 20px;
         }
         .btn-save {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
+            background: rgba(0, 123, 255, 0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 123, 255, 0.2);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-top: 10px;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, box-shadow 0.2s;
         }
         .btn-save:hover {
-            background: #0056b3;
+            background: rgba(0, 123, 255, 0.8);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .btn-cancel {
-            color: #aaa;
+            color: var(--link-color);
             text-decoration: none;
             margin-left: 15px;
+            font-weight: 500;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            textarea { height: 70vh; }
         }
     </style>
 </head>
@@ -395,45 +435,60 @@ BOT_LIST_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Select a Bot</title>
     <style>
-        /* Reusing styles from the main template for consistency */
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: rgba(255, 255, 255, 0.65);
+            --text-color: #333;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --link-color: #0056b3;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(to right, #232526, #414345);
-            color: #e0e0e0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
             padding: 20px;
         }
         .container {
             max-width: 900px;
             margin: auto;
-            background: rgba(30, 30, 30, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: var(--container-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-radius: 15px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px 0 var(--shadow-color);
         }
         h1 {
-            color: #fff;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding-bottom: 10px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
             margin-bottom: 20px;
-            font-weight: 300;
+            font-weight: 400;
         }
         .file-list { list-style: none; padding: 0; }
         .file-item {
             display: flex;
             align-items: center;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             transition: background-color 0.2s;
+            border: 1px solid transparent;
         }
-        .file-item:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .file-item:hover {
+            background-color: rgba(255, 255, 255, 0.5);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
         .file-item a {
-            color: #58a6ff;
+            color: var(--link-color);
             text-decoration: none;
             flex-grow: 1;
+            font-weight: 500;
+        }
+        p {
+            color: #666;
         }
     </style>
 </head>
@@ -526,7 +581,49 @@ def file_manager_index(user_id, bot_index):
 
         main_py_path = os.path.join(bot_path, 'main.py')
         if not os.path.exists(main_py_path):
-            main_py_content = f'"""\nAuto-generated main.py for your bot.\nYour token is securely passed as an environment variable.\n"""\n\nimport os\n\nTOKEN = "{bot_token}"\n\nprint(f"Bot with token prefix {{TOKEN[:8]}}... is starting!")\n\n# Add your discord.py code here\n'
+            main_py_content = f'''
+# Auto-generated main.py: A minimal, runnable Discord bot.
+import discord
+import os
+
+# --- Configuration ---
+# The bot token is securely passed in from the environment.
+TOKEN = "{bot_token}"
+
+# It's recommended to use intents for modern discord.py bots.
+# Make sure to enable the 'Message Content Intent' in your bot's
+# settings on the Discord Developer Portal.
+intents = discord.Intents.default()
+intents.message_content = True
+
+client = discord.Client(intents=intents)
+
+@client.event
+async def on_ready():
+    """Called when the bot is ready and logged in."""
+    print(f'Successfully logged in as {{client.user}}')
+    print('This is a minimal, working bot. You can now add your own commands and logic.')
+    print('------')
+
+@client.event
+async def on_message(message):
+    """Called every time a message is received."""
+    # Don't let the bot reply to its own messages.
+    if message.author == client.user:
+        return
+
+    if message.content.startswith('!hello'):
+        await message.channel.send('Hello!')
+
+# --- Running the Bot ---
+try:
+    print("Attempting to connect to Discord...")
+    client.run(TOKEN)
+except discord.errors.LoginFailure:
+    print("\\n[ERROR] Login failed: An improper token was passed. Please check your bot's token in the database.")
+except Exception as e:
+    print(f"\\n[ERROR] An unexpected error occurred: {{e}}")
+'''
             with open(main_py_path, 'w', encoding='utf-8') as f:
                 f.write(main_py_content)
     except OSError as e:
