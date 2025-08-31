@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block title %}Select a Bot{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Select a Bot to Manage</h1>
+    {% if bots %}
+    <ul class="bot-list">
+        {% for bot in bots %}
+        <li class="bot-list-item">
+            <a href="{{ url_for('file_manager_index', user_id=bot.user_id, bot_index=bot.bot_index) }}">
+                <i data-feather="cpu"></i>
+                <span>Bot {{ loop.index }} (User: {{ bot.user_id }})</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No bots found in the database. Ensure users and their server configurations are correctly set up.</p>
+    {% endif %}
+</div>
+{% endblock %}

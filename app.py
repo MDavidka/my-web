@@ -2,7 +2,7 @@ import os
 import shutil
 import subprocess
 import psutil
-from flask import Flask, render_template_string, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import certifi
@@ -63,456 +63,6 @@ if not os.path.exists(ROOT_DIR):
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
-# --- Templates ---
-
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Manager</title>
-    <style>
-        :root {
-            --bg-color: #f0f2f5;
-            --container-bg: rgba(255, 255, 255, 0.65);
-            --text-color: #333;
-            --border-color: rgba(0, 0, 0, 0.1);
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --link-color: #0056b3;
-            --icon-color-folder: #0056b3;
-            --icon-color-file: #555;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: auto;
-            background: var(--container-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px 0 var(--shadow-color);
-        }
-        h1, h2 {
-            color: var(--text-color);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            font-weight: 400;
-        }
-        .breadcrumb { margin-bottom: 20px; }
-        .breadcrumb a {
-            color: var(--link-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .file-list { list-style: none; padding: 0; }
-        .file-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-radius: 8px;
-            transition: background-color 0.2s;
-        }
-        .file-item:hover { background-color: rgba(0, 0, 0, 0.05); }
-        .file-item a {
-            color: var(--text-color);
-            text-decoration: none;
-            flex-grow: 1;
-            margin-left: 10px;
-        }
-        .file-item .icon {
-            width: 20px;
-            height: 20px;
-        }
-        .folder { color: var(--icon-color-folder); }
-        .file { color: var(--icon-color-file); }
-
-        .actions { margin-top: 25px; }
-
-        input[type="text"] {
-            background-color: rgba(255,255,255,0.5);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            padding: 10px 14px;
-            border-radius: 8px;
-            margin-right: 10px;
-            box-sizing: border-box;
-        }
-
-        button, .btn-start, .btn-stop {
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s, box-shadow 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        button:hover, .btn-start:hover, .btn-stop:hover {
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .delete-btn {
-            background: rgba(255, 107, 107, 0.6);
-        }
-        .delete-btn:hover {
-            background: rgba(255, 107, 107, 0.8);
-        }
-
-        .console-container {
-            margin-top: 20px;
-            background-color: #fff;
-            border: 1px solid var(--border-color);
-            border-radius: 15px;
-            padding: 20px;
-        }
-
-        #console-output {
-            height: 300px;
-            overflow-y: auto;
-            background-color: #f7f7f7;
-            color: #333;
-            font-family: "Courier New", Courier, monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        #bot-status { color: #ffa500; }
-        #bot-status.running { color: #28a745; }
-
-        /* Mobile Optimizations */
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .container { padding: 15px; }
-            .status-bar { flex-direction: column; align-items: flex-start; }
-            .status-bar > div:first-child { margin-bottom: 15px; }
-            .actions form {
-                display: block;
-                width: 100%;
-                margin-bottom: 10px;
-            }
-            .actions input[type="text"], .actions button {
-                width: 100%;
-                margin-right: 0;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="status-bar">
-            <div>
-                <a href="{{ url_for('start_bot', user_id=user_id, bot_index=bot_index) }}" class="btn-start">Start Bot</a>
-                <a href="{{ url_for('stop_bot', user_id=user_id, bot_index=bot_index) }}" class="btn-stop">Stop Bot</a>
-            </div>
-            <div>
-                <span>Status: <b id="bot-status">STOPPED</b></span> |
-                <span>RAM: <b id="ram-usage">0 MB</b></span>
-            </div>
-        </div>
-        <h1>File Manager for Bot {{ bot_index }} (User: {{ user_id }})</h1>
-        <div class="breadcrumb">
-            <a href="{{ url_for('list_bots') }}">Home</a> /
-            <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index) }}">/</a>
-            {% for part in breadcrumb %}
-            <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=part.path) }}">{{ part.name }}</a> /
-            {% endfor %}
-        </div>
-        <ul class="file-list">
-            {% for item in items %}
-            <li class="file-item">
-                {% if item.is_dir %}
-                    <span class="icon folder">&#128193;</span> <!-- Folder Icon -->
-                    <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=item.path) }}">{{ item.name }}</a>
-                {% else %}
-                    <span class="icon file">&#128196;</span> <!-- File Icon -->
-                    <a href="{{ url_for('edit_file', user_id=user_id, bot_index=bot_index, path=item.path) }}">{{ item.name }}</a>
-                {% endif %}
-                <form action="{{ url_for('delete_item', user_id=user_id, bot_index=bot_index) }}" method="post" style="margin-left: auto;">
-                    <input type="hidden" name="path" value="{{ item.path }}">
-                    <button type="submit" class="delete-btn" onclick="return confirm('Are you sure you want to delete this item?');">Delete</button>
-                </form>
-            </li>
-            {% endfor %}
-        </ul>
-        <div class="actions">
-            <form action="{{ url_for('create_file', user_id=user_id, bot_index=bot_index) }}" method="post" style="display:inline-block;">
-                <input type="hidden" name="path" value="{{ current_path }}">
-                <input type="text" name="filename" placeholder="New file name" required>
-                <button type="submit">Create File</button>
-            </form>
-            <form action="{{ url_for('create_folder', user_id=user_id, bot_index=bot_index) }}" method="post" style="display:inline-block;">
-                <input type="hidden" name="path" value="{{ current_path }}">
-                <input type="text" name="foldername" placeholder="New folder name" required>
-                <button type="submit">Create Folder</button>
-            </form>
-        </div>
-    </div>
-    <div class="container console-container">
-        <h2>Console</h2>
-        <div id="console-output"></div>
-    </div>
-
-    <script>
-        const consoleOutput = document.getElementById('console-output');
-        const botStatus = document.getElementById('bot-status');
-        const ramUsage = document.getElementById('ram-usage');
-
-        let lastLogSize = 0;
-
-        async function fetchLogs() {
-            // Only fetch logs if the console is visible
-            if (!consoleOutput) return;
-            const url = "{{ url_for('get_console_logs', user_id=user_id, bot_index=bot_index) }}?size=" + lastLogSize;
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.log_data) {
-                    consoleOutput.textContent += data.log_data;
-                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                }
-                lastLogSize = data.log_size;
-            }
-        }
-
-        async function fetchStatus() {
-            const url = "{{ url_for('get_bot_status', user_id=user_id, bot_index=bot_index) }}";
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                botStatus.textContent = data.status;
-                ramUsage.textContent = data.ram_usage + " MB";
-                if (data.status === "RUNNING") {
-                    botStatus.className = 'running';
-                } else {
-                    botStatus.className = '';
-                }
-            }
-        }
-
-        // Check if the status elements exist before fetching
-        if (botStatus && ramUsage) {
-            // Initial fetches
-            fetchStatus();
-            fetchLogs();
-
-            // Poll
-            setInterval(fetchStatus, 5000);
-            setInterval(fetchLogs, 3000);
-        }
-    </script>
-</body>
-</html>
-"""
-
-EDITOR_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit File</title>
-    <style>
-        :root {
-            --bg-color: #f0f2f5;
-            --container-bg: rgba(255, 255, 255, 0.65);
-            --text-color: #333;
-            --border-color: rgba(0, 0, 0, 0.1);
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --link-color: #0056b3;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: auto;
-            background: var(--container-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px 0 var(--shadow-color);
-        }
-        h1 {
-            color: var(--text-color);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            font-weight: 400;
-        }
-        textarea {
-            width: 100%;
-            height: 60vh;
-            background-color: #fff;
-            color: #222;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 15px;
-            font-family: "Courier New", Courier, monospace;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-        .editor-actions {
-            margin-top: 20px;
-        }
-        .btn-save {
-            background: rgba(0, 123, 255, 0.6);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            border: 1px solid rgba(0, 123, 255, 0.2);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s, box-shadow 0.2s;
-        }
-        .btn-save:hover {
-            background: rgba(0, 123, 255, 0.8);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .btn-cancel {
-            color: var(--link-color);
-            text-decoration: none;
-            margin-left: 15px;
-            font-weight: 500;
-        }
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .container { padding: 15px; }
-            textarea { height: 70vh; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Edit: {{ path }}</h1>
-        <form action="{{ url_for('save_file', user_id=user_id, bot_index=bot_index) }}" method="post">
-            <input type="hidden" name="path" value="{{ path }}">
-            <textarea name="content">{{ content }}</textarea>
-            <br>
-            <button type="submit" class="btn-save">Save Changes</button>
-            <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=parent_path) }}" class="btn-cancel">Cancel</a>
-        </form>
-    </div>
-</body>
-</html>
-"""
-
-BOT_LIST_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select a Bot</title>
-    <style>
-        :root {
-            --bg-color: #f0f2f5;
-            --container-bg: rgba(255, 255, 255, 0.65);
-            --text-color: #333;
-            --border-color: rgba(0, 0, 0, 0.1);
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --link-color: #0056b3;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: auto;
-            background: var(--container-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 8px 32px 0 var(--shadow-color);
-        }
-        h1 {
-            color: var(--text-color);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            font-weight: 400;
-        }
-        .file-list { list-style: none; padding: 0; }
-        .file-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-radius: 8px;
-            transition: background-color 0.2s;
-            border: 1px solid transparent;
-        }
-        .file-item:hover {
-            background-color: rgba(255, 255, 255, 0.5);
-            border-color: rgba(0, 0, 0, 0.1);
-        }
-        .file-item a {
-            color: var(--link-color);
-            text-decoration: none;
-            flex-grow: 1;
-            font-weight: 500;
-        }
-        p {
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Select a Bot to Manage</h1>
-        {% if bots %}
-        <ul class="file-list">
-            {% for bot in bots %}
-            <li class="file-item">
-                <a href="{{ url_for('file_manager_index', user_id=bot.user_id, bot_index=bot.bot_index) }}">
-                    Bot {{ loop.index }} (User: {{ bot.user_id }})
-                </a>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p>No bots found in the database.</p>
-        {% endif %}
-    </div>
-</body>
-</html>
-"""
-
 # --- Routes ---
 
 @app.route('/')
@@ -537,7 +87,7 @@ def list_bots():
                             'bot_index': i
                         })
 
-        return render_template_string(BOT_LIST_TEMPLATE, bots=bots)
+        return render_template("bot_list.html", bots=bots)
 
     except Exception as e:
         print(f"Database connection failed: {e}")
@@ -664,7 +214,7 @@ except Exception as e:
                 'path': os.sep.join(parts[:i+1])
             })
 
-    return render_template_string(HTML_TEMPLATE,
+    return render_template("file_manager.html",
                                   items=items,
                                   breadcrumb=breadcrumb,
                                   current_path=req_path,
@@ -746,7 +296,7 @@ def edit_file(user_id, bot_index):
         return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=os.path.dirname(path)))
 
     parent_path = os.path.dirname(path)
-    return render_template_string(EDITOR_TEMPLATE, path=path, content=content, parent_path=parent_path, user_id=user_id, bot_index=bot_index)
+    return render_template("editor.html", path=path, content=content, parent_path=parent_path, user_id=user_id, bot_index=bot_index)
 
 @app.route('/bot/<user_id>/<int:bot_index>/save', methods=['POST'])
 def save_file(user_id, bot_index):
@@ -801,6 +351,49 @@ def delete_item(user_id, bot_index):
         pass
 
     return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=parent_path))
+
+@app.route('/bot/<user_id>/<int:bot_index>/rename_item', methods=['POST'])
+def rename_item(user_id, bot_index):
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return "Bot not found", 404
+
+    original_path_rel = request.form.get('original_path')
+    new_name = request.form.get('new_name')
+
+    if not original_path_rel or not new_name:
+        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+
+    original_path_abs = os.path.normpath(os.path.join(bot_path, original_path_rel))
+    if not original_path_abs.startswith(bot_path) or original_path_abs == bot_path:
+        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+
+    parent_dir = os.path.dirname(original_path_abs)
+    new_path_abs = os.path.join(parent_dir, new_name)
+
+    try:
+        os.rename(original_path_abs, new_path_abs)
+    except OSError as e:
+        print(f"Error renaming {original_path_abs} to {new_path_abs}: {e}")
+        # Optionally, flash a message to the user
+        pass
+
+    parent_path_rel = os.path.dirname(original_path_rel)
+    return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=parent_path_rel))
+
+@app.route('/bot/<user_id>/<int:bot_index>/download')
+def download_file(user_id, bot_index):
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return "Bot not found", 404
+
+    path = request.args.get('path', '')
+    if not path:
+        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+
+    safe_path = os.path.normpath(os.path.join(bot_path, path))
+    if not safe_path.startswith(bot_path) or not os.path.isfile(safe_path):
+        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+
+    return send_file(safe_path, as_attachment=True)
 
 
 # --- Process Management Routes (Refactored for Multi-Bot) ---

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dash-Bot File Manager{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="main-container">
+        <nav class="navbar">
+            <a href="{{ url_for('list_bots') }}" class="navbar-brand"><i data-feather="terminal"></i> Dash-Bot</a>
+            <div class="theme-switcher" id="theme-switcher">
+                <i data-feather="moon"></i>
+            </div>
+        </nav>
+        <main class="content-wrap">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script>
+        feather.replace();
+
+        const themeSwitcher = document.getElementById('theme-switcher');
+        const body = document.body;
+
+        themeSwitcher.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            const isDarkMode = body.classList.contains('dark-theme');
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+
+            // Update icon
+            themeSwitcher.innerHTML = isDarkMode
+                ? '<i data-feather="sun"></i>'
+                : '<i data-feather="moon"></i>';
+            feather.replace();
+        });
+
+        // Apply saved theme on load
+        if (localStorage.getItem('theme') === 'dark') {
+            body.classList.add('dark-theme');
+            themeSwitcher.innerHTML = '<i data-feather="sun"></i>';
+            feather.replace();
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
