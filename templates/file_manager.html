@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block title %}File Manager{% endblock %}
+
+{% block content %}
+    <div class="header">
+        <h1>File Manager</h1>
+        <div class="bot-controls">
+            <a href="{{ url_for('start_bot', user_id=user_id, bot_index=bot_index) }}" class="btn btn-success"><i data-feather="play"></i> Start</a>
+            <a href="{{ url_for('stop_bot', user_id=user_id, bot_index=bot_index) }}" class="btn btn-danger"><i data-feather="stop-circle"></i> Stop</a>
+        </div>
+    </div>
+    <div class="status-bar">
+        <span>Status: <b id="bot-status">...</b></span>
+        <span>RAM: <b id="ram-usage">...</b></span>
+    </div>
+
+    <div class="file-explorer">
+        <div class="card">
+            <h2>Files</h2>
+            {% macro render_tree(items) %}
+                <ul class="file-list">
+                    {% for item in items %}
+                        <li>
+                            {% if item.is_dir %}
+                                <i data-feather="folder"></i>
+                                <a href="#" class="folder-toggle">{{ item.name }}</a>
+                                <div class="nested">
+                                    {{ render_tree(item.children) }}
+                                </div>
+                            {% else %}
+                                <i data-feather="file-text"></i>
+                                <a href="{{ url_for('edit_file', user_id=user_id, bot_index=bot_index, path=item.path) }}">{{ item.name }}</a>
+                            {% endif %}
+                            <form action="{{ url_for('delete_item', user_id=user_id, bot_index=bot_index) }}" method="post" onsubmit="return confirm('Delete this item?');">
+                                <input type="hidden" name="path" value="{{ item.path }}">
+                                <button type="submit" class="btn-delete"><i data-feather="trash-2"></i></button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endmacro %}
+            {{ render_tree(items) }}
+        </div>
+
+        <div class="card">
+            <h2>Create</h2>
+            <form action="{{ url_for('create_item', user_id=user_id, bot_index=bot_index) }}" method="post">
+                <input type="text" name="filename" placeholder="New file name...">
+                <button type="submit" class="btn">Create File</button>
+            </form>
+            <hr>
+            <form action="{{ url_for('create_item', user_id=user_id, bot_index=bot_index) }}" method="post">
+                <input type="text" name="foldername" placeholder="New folder name...">
+                <button type="submit" class="btn">Create Folder</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Console</h2>
+        <pre id="console-output">Loading console...</pre>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Status and Log Polling
+    const botStatus = document.getElementById('bot-status');
+    const ramUsage = document.getElementById('ram-usage');
+    const consoleOutput = document.getElementById('console-output');
+
+    async function updateStatus() {
+        const res = await fetch("{{ url_for('get_bot_status', user_id=user_id, bot_index=bot_index) }}");
+        const data = await res.json();
+        botStatus.textContent = data.status;
+        ramUsage.textContent = `${data.ram_usage} MB`;
+        botStatus.className = data.status.toLowerCase();
+    }
+
+    let lastLogSize = 0;
+    async function updateLogs() {
+        const res = await fetch(`{{ url_for('get_console_logs', user_id=user_id, bot_index=bot_index) }}?size=${lastLogSize}`);
+        const data = await res.json();
+        if (data.log_data) {
+            consoleOutput.textContent += data.log_data;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        lastLogSize = data.log_size;
+    }
+
+    setInterval(updateStatus, 3000);
+    setInterval(updateLogs, 3000);
+    updateStatus();
+    updateLogs();
+
+    // Collapsible file tree
+    document.querySelectorAll('.folder-toggle').forEach(toggle => {
+        toggle.addEventListener('click', e => {
+            e.preventDefault();
+            toggle.classList.toggle('open');
+            const nestedList = toggle.parentElement.querySelector('.nested');
+            if (nestedList) {
+                nestedList.classList.toggle('active');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

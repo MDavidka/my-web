@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+
+{% block title %}Select a Bot{% endblock %}
+
+{% block content %}
+    <h1>Select a Bot</h1>
+    <div class="card-list">
+        {% for bot in bots %}
+            <a href="{{ url_for('file_manager_index', user_id=bot.user_id, bot_index=bot.bot_index) }}" class="card">
+                <i data-feather="cpu"></i>
+                <span>Bot for User {{ bot.user_id }} (Index {{ bot.bot_index }})</span>
+            </a>
+        {% else %}
+            <p>No bots found.</p>
+        {% endfor %}
+    </div>
+{% endblock %}

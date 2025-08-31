@@ -1,0 +1,206 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+    --bg: #111827;
+    --card-bg: #1f2937;
+    --border-color: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+    --success: #22c55e;
+    --success-hover: #16a34a;
+    --font-family: 'Inter', sans-serif;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+h1, h2 {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+.card-list .card {
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.card-list .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.status-bar {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 30px;
+}
+.status-bar .running { color: var(--success); }
+.status-bar .stopped { color: var(--danger); }
+
+.file-explorer {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 20px;
+}
+
+.file-list {
+    list-style: none;
+    padding: 0;
+}
+.file-list li {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-radius: 6px;
+}
+.file-list li:hover {
+    background-color: rgba(255,255,255,0.05);
+}
+.file-list i {
+    margin-right: 10px;
+}
+.file-list a {
+    color: var(--text-primary);
+    text-decoration: none;
+    flex-grow: 1;
+}
+.file-list .nested {
+    padding-left: 20px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+}
+.file-list .nested.active {
+    max-height: 1000px; /* Arbitrary large value */
+}
+.folder-toggle {
+    cursor: pointer;
+}
+.file-list .folder-toggle ~ .nested {
+    display: none;
+}
+.file-list .folder-toggle.open ~ .nested {
+    display: block;
+}
+.file-list .folder-toggle .feather-chevron-right {
+    transition: transform 0.2s ease-in-out;
+}
+.file-list .folder-toggle.open .feather-chevron-right {
+    transform: rotate(90deg);
+}
+
+.btn {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+.btn:hover { background-color: var(--primary-hover); }
+.btn-danger { background-color: var(--danger); }
+.btn-danger:hover { background-color: var(--danger-hover); }
+.btn-success { background-color: var(--success); }
+.btn-success:hover { background-color: var(--success-hover); }
+
+.btn-delete {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-left: auto;
+    padding: 5px;
+}
+.btn-delete:hover { color: var(--danger); }
+
+input[type="text"] {
+    background-color: var(--bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px;
+    border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+}
+
+#console-output {
+    background-color: #000;
+    color: #eee;
+    padding: 15px;
+    border-radius: 6px;
+    height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.editor-form {
+    display: flex;
+    flex-direction: column;
+    height: 70vh;
+}
+.CodeMirror {
+    flex-grow: 1;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.editor-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .file-explorer {
+        grid-template-columns: 1fr;
+    }
+}
