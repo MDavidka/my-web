@@ -1,0 +1,7 @@
+Flask
+pymongo
+psutil
+certifi
+Flask-Login
+Werkzeug
+dnspython

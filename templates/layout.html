@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Bot Manager{% endblock %}</title>
+    <title>{% block title %}{% endblock %} - Bot Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -11,9 +11,30 @@
     {% block head %}{% endblock %}
 </head>
 <body {% block body_attributes %}{% endblock %}>
-    <div class="container">
+
+    <header class="site-header">
+        <div class="container nav-container">
+            <a href="{{ url_for('list_bots') if current_user.is_authenticated else url_for('login') }}" class="logo">
+                <i data-feather="terminal"></i>
+                <span>BotDash</span>
+            </a>
+            <nav class="main-nav">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('api_docs') }}">API Docs</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}">Login</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container page-content">
         {% block content %}{% endblock %}
-    </div>
+    </main>
+
+    {% if current_user.is_authenticated %}
     <div id="console-container" class="console-container hidden">
         <div class="console-header" id="console-header-drag-handle">
             <div class="console-dots">
@@ -34,12 +55,15 @@
     <button id="console-toggle-btn" class="fab" title="Toggle Console">
         <i data-feather="terminal"></i>
     </button>
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <script>
         feather.replace();
     </script>
+
     {% block scripts %}
+    {% if current_user.is_authenticated %}
     <script>
         // --- GLOBAL FLOATING CONSOLE LOGIC ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -50,21 +74,17 @@
             const consoleOutput = document.getElementById('console-output');
             const consoleStatus = document.getElementById('console-status-display');
 
-            if (!consoleContainer) return; // Exit if console not in DOM
+            if (!consoleContainer) return;
 
-            // --- Visibility ---
             consoleToggleBtn.addEventListener('click', () => {
                 consoleContainer.classList.toggle('hidden');
                 if (!consoleContainer.classList.contains('hidden')) {
-                    startLogPolling(); // Start polling when opened
+                    startLogPolling();
                 }
             });
             consoleCloseBtn.addEventListener('click', () => consoleContainer.classList.add('hidden'));
 
-            // --- Dragging ---
-            // (Dragging logic is unchanged)
-            let isDragging = false;
-            let offsetX, offsetY;
+            let isDragging = false, offsetX, offsetY;
             const onMouseDown = (e) => {
                 isDragging = true;
                 offsetX = e.clientX - consoleContainer.offsetLeft;
@@ -75,10 +95,12 @@
             };
             const onMouseMove = (e) => {
                 if (!isDragging) return;
-                const x = Math.min(window.innerWidth - consoleContainer.offsetWidth, Math.max(0, e.clientX - offsetX));
-                const y = Math.min(window.innerHeight - consoleContainer.offsetHeight, Math.max(0, e.clientY - offsetY));
-                consoleContainer.style.left = `${x}px`;
-                consoleContainer.style.top = `${y}px`;
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+                const maxX = window.innerWidth - consoleContainer.offsetWidth;
+                const maxY = window.innerHeight - consoleContainer.offsetHeight;
+                consoleContainer.style.left = `${Math.min(maxX, Math.max(0, x))}px`;
+                consoleContainer.style.top = `${Math.min(maxY, Math.max(0, y))}px`;
             };
             const onMouseUp = () => {
                 isDragging = false;
@@ -88,100 +110,73 @@
             };
             consoleHeader.addEventListener('mousedown', onMouseDown);
 
-            // --- Bot Controls in Console ---
             function setupConsoleBotControls() {
                 const controlsContainer = document.getElementById('console-bot-controls');
-                const layout = document.querySelector('[data-user-id][data-bot-index]');
+                const layout = document.querySelector('[data-bot-index]');
                 if (!layout || !controlsContainer) return;
 
-                const userId = layout.dataset.userId;
                 const botIndex = layout.dataset.botIndex;
-                controlsContainer.innerHTML = ''; // Clear existing buttons
-
-                const startBtn = document.createElement('a');
-                startBtn.href = `/bot/${userId}/${botIndex}/start`;
-                startBtn.className = 'btn btn-success';
-                startBtn.innerHTML = '<i data-feather="play"></i> Start';
-
-                const stopBtn = document.createElement('a');
-                stopBtn.href = `/bot/${userId}/${botIndex}/stop`;
-                stopBtn.className = 'btn btn-danger';
-                stopBtn.innerHTML = '<i data-feather="stop-circle"></i> Stop';
-
-                controlsContainer.appendChild(startBtn);
-                controlsContainer.appendChild(stopBtn);
-                feather.replace(); // Re-run feather to render new icons
+                controlsContainer.innerHTML = `
+                    <a href="/bot/${botIndex}/start" class="btn btn-success"><i data-feather="play"></i> Start</a>
+                    <a href="/bot/${botIndex}/stop" class="btn btn-danger"><i data-feather="stop-circle"></i> Stop</a>
+                `;
+                feather.replace();
             }
-            setupConsoleBotControls();
 
-            // --- Status & Log Polling ---
-            let statusPollInterval = null;
-            let logPollInterval = null;
-            let lastLogSize = 0;
+            let statusPollInterval, logPollInterval, lastLogSize = 0;
 
-            const updateStatus = async (userId, botIndex) => {
+            const updateStatus = async (botIndex) => {
                 try {
-                    const res = await fetch(`/bot/${userId}/${botIndex}/status`);
+                    const res = await fetch(`/bot/${botIndex}/status`);
                     const data = await res.json();
-
                     consoleStatus.innerHTML = `Status: <b>${data.status}</b> (${data.ram_usage} MB)`;
-                    consoleStatus.classList.remove('running', 'stopped', 'hidden');
-                    consoleStatus.classList.add(data.status.toLowerCase());
+                    consoleStatus.className = `status-badge ${data.status.toLowerCase()}`;
                 } catch (e) {
-                    consoleStatus.textContent = 'Status: Error';
-                    consoleStatus.classList.remove('hidden');
+                    consoleStatus.innerHTML = 'Status: Error';
                 }
             };
 
-            const pollLogs = async (userId, botIndex) => {
-                const url = `/bot/${userId}/${botIndex}/logs?size=${lastLogSize}`;
+            const pollLogs = async (botIndex) => {
+                const url = `/bot/${botIndex}/logs?size=${lastLogSize}`;
                 try {
                     const res = await fetch(url);
-                    if(res.status === 404) {
-                         consoleOutput.textContent += '\\nLog file not found. Run the bot to create it.';
-                         clearInterval(logPollInterval);
-                         return;
-                    }
+                    if(res.status === 404) return;
                     const data = await res.json();
                     if (data.log_data) {
-                        if (consoleOutput.textContent === 'Connecting to console...\\n') {
+                        if (consoleOutput.textContent === 'Connecting to console...') {
                             consoleOutput.textContent = '';
                         }
                         consoleOutput.textContent += data.log_data;
                         consoleOutput.scrollTop = consoleOutput.scrollHeight;
                     }
                     lastLogSize = data.log_size;
-                } catch (e) {
-                    console.error("Log poll failed:", e);
-                    clearInterval(logPollInterval);
-                }
+                } catch (e) { console.error("Log poll failed:", e); }
             };
 
             function startLogPolling() {
-                const layout = document.querySelector('[data-user-id][data-bot-index]');
+                const layout = document.querySelector('[data-bot-index]');
                 if (!layout) {
                     consoleOutput.textContent = "Bot controls and console are only available in a bot's file manager.";
                     consoleStatus.classList.add('hidden');
                     return;
                 }
 
-                const userId = layout.dataset.userId;
                 const botIndex = layout.dataset.botIndex;
-
-                // Clear previous intervals
                 if (logPollInterval) clearInterval(logPollInterval);
                 if (statusPollInterval) clearInterval(statusPollInterval);
 
-                consoleOutput.textContent = 'Connecting to console...\\n';
+                consoleOutput.textContent = 'Connecting to console...';
                 lastLogSize = 0;
 
-                statusPollInterval = setInterval(() => updateStatus(userId, botIndex), 3000);
-                logPollInterval = setInterval(() => pollLogs(userId, botIndex), 2500);
-                updateStatus(userId, botIndex); // Initial poll
-                pollLogs(userId, botIndex); // Initial poll
+                statusPollInterval = setInterval(() => updateStatus(botIndex), 3000);
+                logPollInterval = setInterval(() => pollLogs(botIndex), 2500);
+                updateStatus(botIndex);
+                pollLogs(botIndex);
+                setupConsoleBotControls();
             }
         });
     </script>
+    {% endif %}
     {% endblock %}
 </body>
 </html>
