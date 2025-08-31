@@ -507,6 +507,14 @@ a:hover {
 }
 .console-actions {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.console-actions .status-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    border-width: 2px;
 }
 .console-actions .btn-icon {
     color: var(--text-secondary);

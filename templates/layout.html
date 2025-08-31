@@ -22,6 +22,7 @@
             <span class="console-title">Console</span>
             <div id="console-bot-controls" class="console-bot-controls"></div>
             <div class="console-actions">
+                <div id="console-status-display" class="status-badge hidden"></div>
                 <button id="console-close-btn" class="btn-icon" title="Close Console"><i data-feather="x"></i></button>
             </div>
         </div>
@@ -45,6 +46,7 @@
             const consoleCloseBtn = document.getElementById('console-close-btn');
             const consoleHeader = document.getElementById('console-header-drag-handle');
             const consoleOutput = document.getElementById('console-output');
+            const consoleStatus = document.getElementById('console-status-display');
 
             if (!consoleContainer) return; // Exit if console not in DOM
 
@@ -58,9 +60,9 @@
             consoleCloseBtn.addEventListener('click', () => consoleContainer.classList.add('hidden'));
 
             // --- Dragging ---
+            // (Dragging logic is unchanged)
             let isDragging = false;
             let offsetX, offsetY;
-
             const onMouseDown = (e) => {
                 isDragging = true;
                 offsetX = e.clientX - consoleContainer.offsetLeft;
@@ -69,23 +71,19 @@
                 document.addEventListener('mouseup', onMouseUp);
                 consoleHeader.style.cursor = 'grabbing';
             };
-
             const onMouseMove = (e) => {
                 if (!isDragging) return;
-                // Constrain movement within the viewport
                 const x = Math.min(window.innerWidth - consoleContainer.offsetWidth, Math.max(0, e.clientX - offsetX));
                 const y = Math.min(window.innerHeight - consoleContainer.offsetHeight, Math.max(0, e.clientY - offsetY));
                 consoleContainer.style.left = `${x}px`;
                 consoleContainer.style.top = `${y}px`;
             };
-
             const onMouseUp = () => {
                 isDragging = false;
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
                 consoleHeader.style.cursor = 'move';
             };
-
             consoleHeader.addEventListener('mousedown', onMouseDown);
 
             // --- Bot Controls in Console ---
@@ -96,17 +94,13 @@
 
                 const userId = layout.dataset.userId;
                 const botIndex = layout.dataset.botIndex;
+                controlsContainer.innerHTML = ''; // Clear existing buttons
 
-                // Clear any existing buttons
-                controlsContainer.innerHTML = '';
-
-                // Create Start button
                 const startBtn = document.createElement('a');
                 startBtn.href = `/bot/${userId}/${botIndex}/start`;
                 startBtn.className = 'btn btn-success';
                 startBtn.innerHTML = '<i data-feather="play"></i> Start';
 
-                // Create Stop button
                 const stopBtn = document.createElement('a');
                 stopBtn.href = `/bot/${userId}/${botIndex}/stop`;
                 stopBtn.className = 'btn btn-danger';
@@ -118,52 +112,71 @@
             }
             setupConsoleBotControls();
 
-            // --- Log Polling ---
+            // --- Status & Log Polling ---
+            let statusPollInterval = null;
             let logPollInterval = null;
             let lastLogSize = 0;
+
+            const updateStatus = async (userId, botIndex) => {
+                try {
+                    const res = await fetch(`/bot/${userId}/${botIndex}/status`);
+                    const data = await res.json();
+
+                    consoleStatus.innerHTML = `Status: <b>${data.status}</b> (${data.ram_usage} MB)`;
+                    consoleStatus.classList.remove('running', 'stopped', 'hidden');
+                    consoleStatus.classList.add(data.status.toLowerCase());
+                } catch (e) {
+                    consoleStatus.textContent = 'Status: Error';
+                    consoleStatus.classList.remove('hidden');
+                }
+            };
+
+            const pollLogs = async (userId, botIndex) => {
+                const url = `/bot/${userId}/${botIndex}/logs?size=${lastLogSize}`;
+                try {
+                    const res = await fetch(url);
+                    if(res.status === 404) {
+                         consoleOutput.textContent += '\\nLog file not found. Run the bot to create it.';
+                         clearInterval(logPollInterval);
+                         return;
+                    }
+                    const data = await res.json();
+                    if (data.log_data) {
+                        if (consoleOutput.textContent === 'Connecting to console...\\n') {
+                            consoleOutput.textContent = '';
+                        }
+                        consoleOutput.textContent += data.log_data;
+                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                    }
+                    lastLogSize = data.log_size;
+                } catch (e) {
+                    console.error("Log poll failed:", e);
+                    clearInterval(logPollInterval);
+                }
+            };
 
             function startLogPolling() {
                 const layout = document.querySelector('[data-user-id][data-bot-index]');
                 if (!layout) {
-                    consoleOutput.textContent = "Console is only available in a bot's file manager.";
+                    consoleOutput.textContent = "Bot controls and console are only available in a bot's file manager.";
+                    consoleStatus.classList.add('hidden');
                     return;
                 }
 
                 const userId = layout.dataset.userId;
                 const botIndex = layout.dataset.botIndex;
 
-                if (logPollInterval) clearInterval(logPollInterval); // Clear previous interval
+                // Clear previous intervals
+                if (logPollInterval) clearInterval(logPollInterval);
+                if (statusPollInterval) clearInterval(statusPollInterval);
 
-                consoleOutput.textContent = 'Connecting to console...\n'; // Reset console
+                consoleOutput.textContent = 'Connecting to console...\\n';
                 lastLogSize = 0;
 
-                const poll = async () => {
-                    const url = `/bot/${userId}/${botIndex}/logs?size=${lastLogSize}`;
-                    try {
-                        const res = await fetch(url);
-                        if(res.status === 404) {
-                             consoleOutput.textContent += '\nLog file not found. Run the bot to create it.';
-                             clearInterval(logPollInterval);
-                             return;
-                        }
-                        const data = await res.json();
-                        if (data.log_data) {
-                            // If it was the first poll, clear the "connecting" message
-                            if (consoleOutput.textContent === 'Connecting to console...\n') {
-                                consoleOutput.textContent = '';
-                            }
-                            consoleOutput.textContent += data.log_data;
-                            consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                        }
-                        lastLogSize = data.log_size;
-                    } catch (e) {
-                        console.error("Log poll failed:", e);
-                        clearInterval(logPollInterval);
-                    }
-                };
-
-                logPollInterval = setInterval(poll, 2500);
-                poll();
+                statusPollInterval = setInterval(() => updateStatus(userId, botIndex), 3000);
+                logPollInterval = setInterval(() => pollLogs(userId, botIndex), 2500);
+                updateStatus(userId, botIndex); // Initial poll
+                pollLogs(userId, botIndex); // Initial poll
             }
         });
     </script>

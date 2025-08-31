@@ -301,6 +301,11 @@ def delete_item(user_id, bot_index):
     except OSError as e:
         return jsonify(success=False, message=str(e)), 500
 
+@app.route("/update", methods=["GET"])
+def update_repo():
+    output = git_pull()
+    return jsonify({"status": "done", "output": output})
+
 # --- Process Management ---
 @app.route('/bot/<user_id>/<int:bot_index>/start')
 def start_bot(user_id, bot_index):
