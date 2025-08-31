@@ -6,6 +6,9 @@
     <div class="dashboard-header">
         <h1>My Bots</h1>
         <p>Select a bot to manage its files and console.</p>
+        <div class="search-container">
+            <input type="text" id="bot-search" placeholder="Search bots by name..." autocomplete="off">
+        </div>
     </div>
 
     <div class="bot-card-grid">
@@ -33,4 +36,27 @@
             </div>
         {% endfor %}
     </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('bot-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const botCards = document.querySelectorAll('.bot-card');
+            botCards.forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                if (title.includes(searchTerm)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
