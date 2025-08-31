@@ -147,8 +147,45 @@ def file_manager_index(user_id, bot_index):
     if not os.path.exists(bot_path):
         os.makedirs(bot_path)
     if not os.path.exists(os.path.join(bot_path, 'main.py')):
+        bot_code = f"# Bot Token: {bot_token}\n"
+        bot_code += """import discord
+import os
+
+TOKEN = ""
+with open(__file__, 'r') as f:
+    first_line = f.readline()
+    if 'Bot Token: ' in first_line:
+        TOKEN = first_line.split('Bot Token: ')[1].strip()
+
+if not TOKEN:
+    print("FATAL: Bot token not found in the first line of main.py.")
+    print("Please ensure the first line is '# Bot Token: YOUR_TOKEN_HERE'")
+    exit()
+
+class MyClient(discord.Client):
+    async def on_ready(self):
+        print(f'Logged on as {self.user}!')
+
+    async def on_message(self, message):
+        if message.author == self.user:
+            return
+
+        if message.content == '$ping':
+            await message.channel.send('pong')
+
+intents = discord.Intents.default()
+intents.message_content = True
+client = MyClient(intents=intents)
+try:
+    client.run(TOKEN)
+except discord.errors.LoginFailure:
+    print("FATAL: Improper token has been passed.")
+    print("Please make sure you have the correct bot token in the first line of main.py")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+"""
         with open(os.path.join(bot_path, 'main.py'), 'w') as f:
-            f.write(f'# Bot Token: {bot_token}\nprint("Hello, bot!")')
+            f.write(bot_code)
 
     file_tree = get_file_tree(bot_path, bot_path)
     return render_template("file_manager.html", items=file_tree, user_id=user_id, bot_index=bot_index)

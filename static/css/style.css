@@ -96,15 +96,15 @@ a:hover {
 
 .bot-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
 }
 
 .bot-card {
     background: var(--primary-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
@@ -425,12 +425,17 @@ a:hover {
     position: fixed;
     bottom: 30px;
     right: 30px;
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background-color: var(--accent-color);
-    color: white;
-    border: none;
+
+    /* Frosted glass style */
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+
+    color: var(--text-primary);
     cursor: pointer;
     box-shadow: var(--shadow-lg);
     display: flex;
@@ -440,7 +445,7 @@ a:hover {
     z-index: 999;
 }
 .fab:hover {
-    background-color: var(--accent-hover);
+    background: rgba(80, 80, 80, 0.7);
     transform: scale(1.1);
 }
 .fab i {
@@ -513,6 +518,19 @@ a:hover {
     color: var(--text-primary);
 }
 
+.console-bot-controls {
+    display: flex;
+    gap: 0.75rem;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.console-bot-controls .btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+}
+
 .console-output {
     flex-grow: 1;
     padding: 1rem;
@@ -545,6 +563,9 @@ a:hover {
     body {
         padding: 0;
     }
+    .dashboard-header h1 {
+        font-size: 2rem;
+    }
     .file-manager-layout {
         flex-direction: column;
         height: 100vh;
@@ -552,17 +573,23 @@ a:hover {
     }
     .file-sidebar {
         width: 100%;
-        height: 45vh;
+        height: 40vh; /* Slightly smaller */
         border-right: none;
         border-bottom: 1px solid var(--border-color);
     }
     .main-content {
         padding: 1rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
     }
     .main-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+    }
+    .bot-info h2 {
+        font-size: 1.2rem;
     }
     .bot-controls {
         width: 100%;
@@ -571,5 +598,17 @@ a:hover {
     .fab {
         bottom: 20px;
         right: 20px;
+    }
+
+    /* Editor-specific mobile optimizations */
+    .editor-view-active .file-sidebar {
+        display: none;
+    }
+    .editor-view-active .main-content {
+        height: 100vh;
+        padding: 0 !important;
+    }
+    .editor-view-active .fab {
+        display: none; /* Hide console toggle in editor on mobile */
     }
 }

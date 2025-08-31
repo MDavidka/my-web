@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body>
+<body {% block body_attributes %}{% endblock %}>
     <div class="container">
         {% block content %}{% endblock %}
     </div>
@@ -20,6 +20,7 @@
                 <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
             </div>
             <span class="console-title">Console</span>
+            <div id="console-bot-controls" class="console-bot-controls"></div>
             <div class="console-actions">
                 <button id="console-close-btn" class="btn-icon" title="Close Console"><i data-feather="x"></i></button>
             </div>
@@ -86,6 +87,36 @@
             };
 
             consoleHeader.addEventListener('mousedown', onMouseDown);
+
+            // --- Bot Controls in Console ---
+            function setupConsoleBotControls() {
+                const controlsContainer = document.getElementById('console-bot-controls');
+                const layout = document.querySelector('[data-user-id][data-bot-index]');
+                if (!layout || !controlsContainer) return;
+
+                const userId = layout.dataset.userId;
+                const botIndex = layout.dataset.botIndex;
+
+                // Clear any existing buttons
+                controlsContainer.innerHTML = '';
+
+                // Create Start button
+                const startBtn = document.createElement('a');
+                startBtn.href = `/bot/${userId}/${botIndex}/start`;
+                startBtn.className = 'btn btn-success';
+                startBtn.innerHTML = '<i data-feather="play"></i> Start';
+
+                // Create Stop button
+                const stopBtn = document.createElement('a');
+                stopBtn.href = `/bot/${userId}/${botIndex}/stop`;
+                stopBtn.className = 'btn btn-danger';
+                stopBtn.innerHTML = '<i data-feather="stop-circle"></i> Stop';
+
+                controlsContainer.appendChild(startBtn);
+                controlsContainer.appendChild(stopBtn);
+                feather.replace(); // Re-run feather to render new icons
+            }
+            setupConsoleBotControls();
 
             // --- Log Polling ---
             let logPollInterval = null;
