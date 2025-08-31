@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit: {{ path }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="card editor-container">
+    <h1>Edit: <span class="breadcrumb">{{ path }}</span></h1>
+
+    <form action="{{ url_for('save_file', user_id=user_id, bot_index=bot_index) }}" method="post" style="height: 100%; display: flex; flex-direction: column;">
+        <input type="hidden" name="path" value="{{ path }}">
+        <textarea id="code-editor" name="content">{{ content }}</textarea>
+
+        <div class="editor-actions">
+            <button type="submit" class="btn"><i data-feather="save"></i> Save Changes</button>
+            <a href="{{ url_for('file_manager_index', user_id=user_id, bot_index=bot_index, path=parent_path) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script>
+    const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+        lineNumbers: true,
+        mode: 'python',
+        theme: 'dracula', // Default theme
+        lineWrapping: true,
+        indentUnit: 4
+    });
+
+    // Function to switch theme
+    function setEditorTheme(theme) {
+        editor.setOption('theme', theme);
+    }
+
+    // Check local storage for theme
+    if (localStorage.getItem('theme') === 'dark') {
+        setEditorTheme('dracula');
+    } else {
+        setEditorTheme('default');
+    }
+
+    // Listen for theme changes from the main layout
+    const body = document.body;
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            if (mutation.attributeName === 'class') {
+                const isDarkMode = body.classList.contains('dark-theme');
+                setEditorTheme(isDarkMode ? 'dracula' : 'default');
+            }
+        });
+    });
+    observer.observe(body, { attributes: true });
+
+</script>
+{% endblock %}
