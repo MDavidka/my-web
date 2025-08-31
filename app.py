@@ -28,7 +28,6 @@ login_manager.login_view = 'login' # Route name for the login page
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data['_id'])
-        self.username = user_data.get('username')
         self.email = user_data.get('email')
         self.password_hash = user_data.get('password_hash')
         self.servers = user_data.get('servers', [])
@@ -107,16 +106,16 @@ def login():
         return redirect(url_for('list_bots'))
     if request.method == 'POST':
         db = get_db()
-        username = request.form.get('username')
+        email = request.form.get('email')
         password = request.form.get('password')
-        user_data = db.users.find_one({'username': username})
+        user_data = db.users.find_one({'email': email})
 
         if user_data and check_password_hash(user_data.get('password_hash', ''), password):
             user = User(user_data)
             login_user(user)
             return redirect(url_for('list_bots'))
         else:
-            flash('Invalid username or password.', 'danger')
+            flash('Invalid email or password.', 'danger')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -126,20 +125,14 @@ def register():
     if request.method == 'POST':
         db = get_db()
         email = request.form.get('email')
-        username = request.form.get('username')
         password = request.form.get('password')
 
         if db.users.find_one({'email': email}):
             flash('Email address already registered.', 'warning')
             return redirect(url_for('register'))
 
-        if db.users.find_one({'username': username}):
-            flash('Username is already taken.', 'warning')
-            return redirect(url_for('register'))
-
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = {
-            'username': username,
             'email': email,
             'password_hash': hashed_password,
             'servers': [], # New users start with no bots
