@@ -1,0 +1,200 @@
+{% extends "layout.html" %}
+
+{% block title %}API Documentation{% endblock %}
+
+{% block content %}
+<div class="api-docs-container">
+    <div class="dashboard-header">
+        <h1>API Documentation</h1>
+        <p>Use our API to manage your bots programmatically.</p>
+    </div>
+
+    <!-- Authentication Section -->
+    <section class="api-section">
+        <h2>Authentication</h2>
+        <p>
+            Authentication is handled via an API key. You must include your key in the
+            <code>X-API-Key</code> header with every request.
+        </p>
+        <div class="code-block">
+            <pre><code>X-API-Key: your-super-secret-api-key</code></pre>
+        </div>
+        <p class="note">
+            <strong>Note:</strong> For this demo, the API key is hardcoded. In a real application, you would
+            have a unique, securely generated key for your account.
+        </p>
+    </section>
+
+    <!-- Get File Content -->
+    <section class="api-section">
+        <h2>Get File Content</h2>
+        <p>Retrieves the content of a specific file within a bot's directory.</p>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <span class="path">/api/bot/&lt;user_id&gt;/&lt;bot_index&gt;/file?path=&lt;file_path&gt;</span>
+        </div>
+        <h4>Parameters</h4>
+        <ul>
+            <li><code>path</code> (query string, required): The relative path to the file from the bot's root directory (e.g., <code>main.py</code> or <code>cogs/music.py</code>).</li>
+        </ul>
+        <h4>Example Request (cURL)</h4>
+        <div class="code-block">
+            <pre><code>curl -X GET "http://your-domain.com/api/bot/USER_ID/0/file?path=main.py" \
+-H "X-API-Key: your-super-secret-api-key"</code></pre>
+        </div>
+        <h4>Success Response (200 OK)</h4>
+        <div class="code-block">
+            <pre><code>{
+  "path": "main.py",
+  "content": "import discord\n\n# Your bot code here..."
+}</code></pre>
+        </div>
+    </section>
+
+    <!-- Edit File Content -->
+    <section class="api-section">
+        <h2>Edit File Content</h2>
+        <p>Updates the content of a specific file. If the file doesn't exist, it will be created.</p>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="path">/api/bot/&lt;user_id&gt;/&lt;bot_index&gt;/file?path=&lt;file_path&gt;</span>
+        </div>
+        <h4>Parameters</h4>
+        <ul>
+            <li><code>path</code> (query string, required): The relative path to the file.</li>
+        </ul>
+        <h4>Request Body (JSON)</h4>
+        <ul>
+            <li><code>content</code> (string, required): The new content for the file.</li>
+        </ul>
+        <h4>Example Request (cURL)</h4>
+        <div class="code-block">
+            <pre><code>curl -X POST "http://your-domain.com/api/bot/USER_ID/0/file?path=config.json" \
+-H "X-API-Key: your-super-secret-api-key" \
+-H "Content-Type: application/json" \
+-d '{"content": "{\\"prefix\\": \\"!\\"}"}'</code></pre>
+        </div>
+        <h4>Success Response (200 OK)</h4>
+        <div class="code-block">
+            <pre><code>{
+  "success": true,
+  "message": "File 'config.json' updated successfully."
+}</code></pre>
+        </div>
+    </section>
+
+    <!-- Start Bot -->
+    <section class="api-section">
+        <h2>Start Bot</h2>
+        <p>Starts the bot process.</p>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="path">/api/bot/&lt;user_id&gt;/&lt;bot_index&gt;/start</span>
+        </div>
+        <h4>Example Request (cURL)</h4>
+        <div class="code-block">
+            <pre><code>curl -X POST "http://your-domain.com/api/bot/USER_ID/0/start" \
+-H "X-API-Key: your-super-secret-api-key"</code></pre>
+        </div>
+        <h4>Success Response (200 OK)</h4>
+        <div class="code-block">
+            <pre><code>{
+  "success": true,
+  "message": "Bot started successfully."
+}</code></pre>
+        </div>
+    </section>
+
+    <!-- Stop Bot -->
+    <section class="api-section">
+        <h2>Stop Bot</h2>
+        <p>Stops the bot process.</p>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <span class="path">/api/bot/&lt;user_id&gt;/&lt;bot_index&gt;/stop</span>
+        </div>
+        <h4>Example Request (cURL)</h4>
+        <div class="code-block">
+            <pre><code>curl -X POST "http://your-domain.com/api/bot/USER_ID/0/stop" \
+-H "X-API-Key: your-super-secret-api-key"</code></pre>
+        </div>
+        <h4>Success Response (200 OK)</h4>
+        <div class="code-block">
+            <pre><code>{
+  "success": true,
+  "message": "Bot stopped successfully."
+}</code></pre>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .api-docs-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding-bottom: 4rem;
+    }
+    .api-section {
+        background: var(--primary-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+    }
+    .api-section h2 {
+        font-size: 1.75rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .api-section h4 {
+        font-size: 1.1rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .endpoint {
+        background: var(--secondary-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: var(--font-mono);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.9rem;
+    }
+    .method {
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: white;
+    }
+    .method.get { background-color: #0ea5e9; } /* blue-500 */
+    .method.post { background-color: #22c55e; } /* green-500 */
+
+    .code-block {
+        background: #0a0a0a;
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-top: 1rem;
+    }
+    .code-block pre {
+        margin: 0;
+    }
+    .code-block code {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+    }
+    .note {
+        background-color: rgba(255, 217, 0, 0.1);
+        border-left: 4px solid #facc15; /* yellow-400 */
+        padding: 1rem;
+        border-radius: 4px;
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}

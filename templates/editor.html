@@ -45,6 +45,15 @@
             header.style.display = 'none';
         }
 
+        // --- Toast Notification ---
+        const showToast = (message, isError = false) => {
+            const toast = document.createElement('div');
+            toast.className = `toast ${isError ? 'error' : ''}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+
         const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
             lineNumbers: true,
             mode: 'python',
@@ -54,6 +63,10 @@
             autoCloseBrackets: true,
             tabSize: 4,
             indentUnit: 4,
+            extraKeys: {
+                "Ctrl-S": function(instance) { saveFile(); },
+                "Cmd-S": function(instance) { saveFile(); }
+            }
         });
 
         const editorForm = document.querySelector('.editor-form');
@@ -63,6 +76,33 @@
         codeMirrorWrapper.appendChild(editorActions);
         editorForm.style.height = '100%';
         codeMirrorWrapper.style.height = '100%';
+
+        // --- Save Logic ---
+        const saveFile = async () => {
+            editor.save(); // Updates the textarea from CodeMirror instance
+            const formData = new FormData(editorForm);
+            const url = editorForm.action;
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: new URLSearchParams(formData)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                } else {
+                    showToast(data.message, true);
+                }
+            } catch (e) {
+                showToast('An unexpected error occurred while saving.', true);
+            }
+        };
+
+        editorForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveFile();
+        });
 
         // --- Delete Button Logic ---
         const deleteBtn = document.getElementById('delete-btn');

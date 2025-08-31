@@ -7,6 +7,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import certifi
 from datetime import datetime
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -208,17 +209,20 @@ def edit_file(user_id, bot_index):
 @app.route('/bot/<user_id>/<int:bot_index>/save', methods=['POST'])
 def save_file(user_id, bot_index):
     bot_path, _, _ = get_bot_info(user_id, bot_index)
-    if not bot_path: return "Bot not found", 404
+    if not bot_path:
+        return jsonify(success=False, message="Bot not found"), 404
 
     path_rel = request.form.get('path')
     path_abs = get_safe_path(bot_path, path_rel)
     if not path_abs:
-        return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+        return jsonify(success=False, message="Invalid path"), 400
 
-    with open(path_abs, 'w') as f:
-        f.write(request.form.get('content', ''))
-
-    return redirect(url_for('file_manager_index', user_id=user_id, bot_index=bot_index))
+    try:
+        with open(path_abs, 'w') as f:
+            f.write(request.form.get('content', ''))
+        return jsonify(success=True, message=f"File '{os.path.basename(path_rel)}' saved successfully.")
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
 
 @app.route('/bot/<user_id>/<int:bot_index>/create', methods=['POST'])
 def create_item(user_id, bot_index):
@@ -374,6 +378,124 @@ def get_console_logs(user_id, bot_index):
         return jsonify(log_data=new_logs, log_size=current_size)
 
     return jsonify(log_data="", log_size=current_size)
+
+# --- API Routes ---
+# NOTE: In a real-world app, API keys should be securely generated,
+# stored, and retrieved per user from the database.
+HARDCODED_API_KEY = "your-super-secret-api-key"
+
+def require_api_key(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key')
+        if not api_key or api_key != HARDCODED_API_KEY:
+            return jsonify(error="Invalid or missing API key"), 403
+        return func(*args, **kwargs)
+    return decorated_function
+
+@app.route('/api/bot/<user_id>/<int:bot_index>/file', methods=['GET'])
+@require_api_key
+def api_get_file(user_id, bot_index):
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path:
+        return jsonify(error="Bot not found"), 404
+
+    # Ensure the base directory for the bot exists
+    if not os.path.exists(bot_path):
+        os.makedirs(bot_path)
+
+    file_path_rel = request.args.get('path')
+    if not file_path_rel:
+        return jsonify(error="'path' query parameter is required"), 400
+
+    file_path_abs = get_safe_path(bot_path, file_path_rel)
+    if not file_path_abs or not os.path.isfile(file_path_abs):
+        return jsonify(error="File not found"), 404
+
+    try:
+        with open(file_path_abs, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return jsonify(path=file_path_rel, content=content)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
+@app.route('/api/bot/<user_id>/<int:bot_index>/file', methods=['POST'])
+@require_api_key
+def api_edit_file(user_id, bot_index):
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path:
+        return jsonify(error="Bot not found"), 404
+
+    file_path_rel = request.args.get('path')
+    if not file_path_rel:
+        return jsonify(error="'path' query parameter is required"), 400
+
+    file_path_abs = get_safe_path(bot_path, file_path_rel)
+    if not file_path_abs: # Can be a new file
+        return jsonify(error="Invalid file path"), 400
+
+    if not request.is_json or 'content' not in request.json:
+        return jsonify(error="Missing 'content' in JSON request body"), 400
+
+    try:
+        # Also ensure the subdirectory exists, if any
+        dir_name = os.path.dirname(file_path_abs)
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+
+        with open(file_path_abs, 'w', encoding='utf-8') as f:
+            f.write(request.json['content'])
+        return jsonify(success=True, message=f"File '{file_path_rel}' updated successfully.")
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
+@app.route('/api/bot/<user_id>/<int:bot_index>/start', methods=['POST'])
+@require_api_key
+def api_start_bot(user_id, bot_index):
+    bot_key = (user_id, bot_index)
+    if bot_key in bot_processes and bot_processes[bot_key].poll() is None:
+        return jsonify(success=False, message="Bot is already running."), 409
+
+    bot_path, _, log_file = get_bot_info(user_id, bot_index)
+    if not bot_path:
+        return jsonify(error="Bot not found"), 404
+
+    main_py = os.path.join(bot_path, 'main.py')
+    if not os.path.exists(main_py):
+        return jsonify(error="main.py not found"), 404
+
+    with open(log_file, 'w') as f:
+        f.write('--- Starting bot via API... ---\n')
+    log_handle = open(log_file, 'a')
+    process = subprocess.Popen(['python', '-u', main_py], stdout=log_handle, stderr=log_handle, cwd=bot_path)
+    bot_processes[bot_key] = process
+    return jsonify(success=True, message="Bot started successfully.")
+
+@app.route('/api/bot/<user_id>/<int:bot_index>/stop', methods=['POST'])
+@require_api_key
+def api_stop_bot(user_id, bot_index):
+    bot_key = (user_id, bot_index)
+    if bot_key not in bot_processes or bot_processes[bot_key].poll() is not None:
+        return jsonify(success=False, message="Bot is not running."), 409
+
+    try:
+        parent = psutil.Process(bot_processes[bot_key].pid)
+        for child in parent.children(recursive=True):
+            child.kill()
+        parent.kill()
+        message = "Bot stopped successfully."
+    except psutil.NoSuchProcess:
+        message = "Process not found, but removed from tracking."
+    finally:
+        if bot_key in bot_processes:
+            del bot_processes[bot_key]
+
+    return jsonify(success=True, message=message)
+
+@app.route('/api/docs')
+def api_docs():
+    return render_template('api_docs.html')
+
 
 # --- Main ---
 if __name__ == '__main__':
