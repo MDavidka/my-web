@@ -28,7 +28,7 @@ app.config['DISCORD_REDIRECT_URI'] = 'http://dev.sycord.com/login/discord/callba
 app.config['DISCORD_API_BASE_URL'] = 'https://discord.com/api/v10'
 app.config['DISCORD_AUTH_URL'] = 'https://discord.com/oauth2/authorize'
 app.config['DISCORD_TOKEN_URL'] = 'https://discord.com/api/oauth2/token'
-app.config['DISCORD_SCOPE'] = ['identify', 'email']
+app.config['DISCORD_SCOPE'] = ['identify', 'email', 'guilds']
 
 # --- App Configuration ---
 app.config['MONGO_URI'] = "mongodb+srv://Cebelian12:testke12@cluster0.0p3pv8x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
