@@ -21,6 +21,33 @@
 </style>
 {% endblock %}
 
+{% macro render_tree_item(item, bot_index) %}
+<li class="tree-item {% if item.is_dir %}is-folder{% endif %}" data-path="{{ item.path }}">
+    <div class="folder-toggle flex items-center justify-between p-2 rounded-md hover:bg-gray-700/50 transition cursor-pointer">
+        <div class="flex items-center">
+            {% if item.is_dir %}
+                <svg class="chevron w-4 h-4 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg class="w-5 h-5 mr-2 text-yellow-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            {% else %}
+                <svg class="w-5 h-5 mr-2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            {% endif %}
+            {% if not item.is_dir %}
+            <span hx-get="{{ url_for('edit_file', bot_index=bot_index, path=item.path) }}" hx-target="#editor-container" hx-swap="innerHTML" class="text-gray-300 hover:text-white cursor-pointer">{{ item.name }}</span>
+            {% else %}
+            <span class="text-gray-300">{{ item.name }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if item.is_dir %}
+        <ul class="nested-tree ml-4 pl-2 border-l border-gray-700 space-y-1 mt-1">
+            {% for child in item.children %}
+                {{ render_tree_item(child, bot_index) }}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>
+{% endmacro %}
+
 {% block content %}
 <div class="flex h-[calc(100vh-10rem)] bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden" data-bot-index="{{ bot_index }}">
     <!-- File Sidebar -->
@@ -53,33 +80,6 @@
         </div>
     </main>
 </div>
-
-{% macro render_tree_item(item, bot_index) %}
-<li class="tree-item {% if item.is_dir %}is-folder{% endif %}" data-path="{{ item.path }}">
-    <div class="folder-toggle flex items-center justify-between p-2 rounded-md hover:bg-gray-700/50 transition cursor-pointer">
-        <div class="flex items-center">
-            {% if item.is_dir %}
-                <svg class="chevron w-4 h-4 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                <svg class="w-5 h-5 mr-2 text-yellow-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            {% else %}
-                <svg class="w-5 h-5 mr-2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            {% endif %}
-            {% if not item.is_dir %}
-            <span hx-get="{{ url_for('edit_file', bot_index=bot_index, path=item.path) }}" hx-target="#editor-container" hx-swap="innerHTML" class="text-gray-300 hover:text-white cursor-pointer">{{ item.name }}</span>
-            {% else %}
-            <span class="text-gray-300">{{ item.name }}</span>
-            {% endif %}
-        </div>
-    </div>
-    {% if item.is_dir %}
-        <ul class="nested-tree ml-4 pl-2 border-l border-gray-700 space-y-1 mt-1">
-            {% for child in item.children %}
-                {{ render_tree_item(child, bot_index) }}
-            {% endfor %}
-        </ul>
-    {% endif %}
-</li>
-{% endmacro %}
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
