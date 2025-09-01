@@ -24,12 +24,14 @@
 </style>
 
 <script>
-    const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    const editorEl = document.getElementById('editor');
+    const editor = CodeMirror.fromTextArea(editorEl, {
         lineNumbers: true,
         mode: 'python',
         theme: 'monokai',
         indentUnit: 4
     });
+    editorEl.cmInstance = editor; // Store instance on the element
 
     window.saveFile = function() {
         const content = editor.getValue();

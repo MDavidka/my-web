@@ -277,7 +277,24 @@ except Exception as e:
             f.write(bot_code)
 
     file_tree = get_file_tree(bot_path, bot_path)
-    return render_template("file_manager.html", items=file_tree, bot_index=bot_index)
+
+    # Get bot status
+    bot_key = (user_id, bot_index)
+    status = "STOPPED"
+    ram = 0
+    if bot_key in bot_processes and bot_processes[bot_key].poll() is None:
+        try:
+            p = psutil.Process(bot_processes[bot_key].pid)
+            status = "RUNNING"
+            ram = round(p.memory_info().rss / (1024 * 1024), 2)
+        except psutil.NoSuchProcess:
+            status = "STOPPED"
+            if bot_key in bot_processes:
+                del bot_processes[bot_key]
+
+    bot_status = {'status': status, 'ram': ram}
+
+    return render_template("file_manager.html", items=file_tree, bot_index=bot_index, bot_status=bot_status)
 
 @app.route('/bot/<int:bot_index>/edit')
 @login_required
@@ -407,29 +424,33 @@ def delete_item(bot_index):
         return jsonify(success=False, message=str(e)), 500
 
 # --- Process Management ---
-@app.route('/bot/<int:bot_index>/start')
+@app.route('/bot/<int:bot_index>/start', methods=['POST'])
 @login_required
 def start_bot(bot_index):
     user_id = current_user.id
     bot_key = (user_id, bot_index)
     if bot_key in bot_processes and bot_processes[bot_key].poll() is None:
-        return redirect(url_for('file_manager_index', bot_index=bot_index))
+        flash('Bot is already running.', 'warning')
+        return jsonify(success=False, message="Bot is already running.")
 
     bot_path, _, log_file = get_bot_info(user_id, bot_index)
-    if not bot_path: return "Bot not found", 404
+    if not bot_path:
+        return jsonify(success=False, message="Bot not found"), 404
 
     main_py = os.path.join(bot_path, 'main.py')
     if not os.path.exists(main_py):
-        return "main.py not found", 404
+        return jsonify(success=False, message="main.py not found"), 404
 
     with open(log_file, 'w') as f:
         f.write('--- Starting bot... ---\n')
     log_handle = open(log_file, 'a')
     process = subprocess.Popen(['python', '-u', main_py], stdout=log_handle, stderr=log_handle, cwd=bot_path)
     bot_processes[bot_key] = process
-    return redirect(url_for('file_manager_index', bot_index=bot_index))
 
-@app.route('/bot/<int:bot_index>/stop')
+    flash('Bot started successfully!', 'success')
+    return jsonify(success=True, message="Bot started successfully.")
+
+@app.route('/bot/<int:bot_index>/stop', methods=['POST'])
 @login_required
 def stop_bot(bot_index):
     user_id = current_user.id
@@ -440,11 +461,20 @@ def stop_bot(bot_index):
             for child in parent.children(recursive=True):
                 child.kill()
             parent.kill()
+            message = "Bot stopped successfully."
+            category = "success"
         except psutil.NoSuchProcess:
-            pass
+            message = "Bot process not found, but was cleared."
+            category = "warning"
         finally:
-            del bot_processes[bot_key]
-    return redirect(url_for('file_manager_index', bot_index=bot_index))
+            if bot_key in bot_processes:
+                del bot_processes[bot_key]
+    else:
+        message = "Bot is not running."
+        category = "warning"
+
+    flash(message, category)
+    return jsonify(success=True, message=message)
 
 @app.route('/bot/<int:bot_index>/status')
 @login_required
