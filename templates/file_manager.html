@@ -18,6 +18,13 @@
   .file-tree .is-folder.open > .folder-toggle .chevron {
     transform: rotate(90deg);
   }
+  .console-content {
+    transition: max-height 0.3s ease-in-out;
+  }
+  .console-minimized .console-content {
+    max-height: 0;
+    overflow: hidden;
+  }
 </style>
 {% endblock %}
 
@@ -32,7 +39,7 @@
                 <svg class="w-5 h-5 mr-2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
             {% endif %}
             {% if not item.is_dir %}
-            <span hx-get="{{ url_for('edit_file', bot_index=bot_index, path=item.path) }}" hx-target="#editor-container" hx-swap="innerHTML" class="text-gray-300 hover:text-white cursor-pointer">{{ item.name }}</span>
+            <span hx-get="{{ url_for('edit_file', bot_index=bot_index, path=item.path) }}" hx-target="#editor-container" hx-swap="innerHTML" class="file-link text-gray-300 hover:text-white cursor-pointer">{{ item.name }}</span>
             {% else %}
             <span class="text-gray-300">{{ item.name }}</span>
             {% endif %}
@@ -68,7 +75,7 @@
 
     <!-- Main Content -->
     <main class="flex-1 flex flex-col bg-gray-800">
-        <div class="p-2 md:hidden">
+        <div class="p-2 md:hidden border-b border-gray-700">
              <button id="sidebar-toggle" class="p-2 rounded-md hover:bg-gray-700">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
@@ -80,19 +87,52 @@
                 <p class="text-sm">You can also create new files or folders using the icons above.</p>
             </div>
         </div>
-        <div id="console-output" class="h-48 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto border-t border-gray-700">
-            Welcome to the console.
+        <div id="console-container" class="border-t border-gray-700">
+            <div class="flex items-center justify-between p-2 bg-gray-900/30">
+                <span class="font-mono text-sm text-gray-400">Console</span>
+                <div class="flex items-center space-x-2">
+                    <button hx-post="{{ url_for('start_bot', bot_index=bot_index) }}" hx-swap="none" class="px-3 py-1 text-sm rounded-md bg-white/10 border border-white/20 hover:bg-white/20 transition">Start</button>
+                    <button hx-post="{{ url_for('stop_bot', bot_index=bot_index) }}" hx-swap="none" class="px-3 py-1 text-sm rounded-md bg-white/10 border border-white/20 hover:bg-white/20 transition">Stop</button>
+                    <button id="console-toggle" class="p-1 rounded-md hover:bg-white/20">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+            </div>
+            <pre id="console-output" class="console-content h-48 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto">Welcome to the console.</pre>
         </div>
     </main>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('file-sidebar');
+    const toggleButton = document.getElementById('sidebar-toggle');
+    const fileTree = document.querySelector('.file-tree');
+    const consoleContainer = document.getElementById('console-container');
+    const consoleToggleButton = document.getElementById('console-toggle');
+
+    // Mobile sidebar toggle
+    if (sidebar && toggleButton) {
+        toggleButton.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+    }
+
+    // Hide sidebar on file click in mobile
+    if (fileTree && sidebar) {
+        fileTree.addEventListener('click', (e) => {
+            if (e.target.classList.contains('file-link')) {
+                if (window.innerWidth < 768) { // md breakpoint
+                    sidebar.classList.add('-translate-x-full');
+                }
+            }
+        });
+    }
+
     // Tree view folder toggle
     document.querySelectorAll('.file-tree .folder-toggle').forEach(toggle => {
         toggle.addEventListener('click', (e) => {
-            if (e.target.tagName.toLowerCase() === 'span') {
-                // Let HTMX handle the click on file names
+            if (e.target.classList.contains('file-link')) {
                 return;
             }
             const parentLi = toggle.closest('.is-folder');
@@ -102,12 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Mobile sidebar toggle
-    const sidebar = document.getElementById('file-sidebar');
-    const toggleButton = document.getElementById('sidebar-toggle');
-    if (sidebar && toggleButton) {
-        toggleButton.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
+    // Console toggle
+    if (consoleContainer && consoleToggleButton) {
+        consoleToggleButton.addEventListener('click', () => {
+            consoleContainer.classList.toggle('console-minimized');
         });
     }
 });
