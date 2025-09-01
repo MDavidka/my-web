@@ -4,24 +4,16 @@
 
 {% block head %}
 <style>
-  .file-tree .folder-toggle .chevron {
-    transition: transform 0.2s ease-in-out;
-  }
-  .file-tree .nested-tree {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
-  }
-  .file-tree .is-folder.open > .nested-tree {
-    max-height: 1000px; /* Arbitrary large number */
-  }
-  .file-tree .is-folder.open > .folder-toggle .chevron {
-    transform: rotate(90deg);
-  }
+  /* (Same styles for file tree as before) */
+  .file-tree .folder-toggle .chevron { transition: transform 0.2s ease-in-out; }
+  .file-tree .nested-tree { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
+  .file-tree .is-folder.open > .nested-tree { max-height: 1000px; }
+  .file-tree .is-folder.open > .folder-toggle .chevron { transform: rotate(90deg); }
 </style>
 {% endblock %}
 
 {% macro render_tree_item(item, bot_index) %}
+    <!-- (Same macro content as before) -->
 <li class="tree-item {% if item.is_dir %}is-folder{% endif %}" data-path="{{ item.path }}">
     <div class="folder-toggle flex items-center justify-between p-2 rounded-md hover:bg-gray-700/50 transition cursor-pointer">
         <div class="flex items-center">
@@ -49,88 +41,132 @@
 {% endmacro %}
 
 {% block content %}
-<div class="relative flex h-[calc(100vh-10rem)] bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden" data-bot-index="{{ bot_index }}">
+<div class="relative flex h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)]" data-bot-index="{{ bot_index }}">
     <!-- File Sidebar -->
-    <aside id="file-sidebar" class="absolute md:relative z-20 h-full md:h-auto bg-gray-900/80 md:bg-gray-900/30 backdrop-blur-md md:backdrop-blur-none p-4 overflow-y-auto w-3/4 max-w-[350px] -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-white">Files</h2>
-            <div class="space-x-2">
-                <button title="New File" class="text-gray-400 hover:text-white transition" onclick="showCreateModal('file')"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></button>
-                <button title="New Folder" class="text-gray-400 hover:text-white transition" onclick="showCreateModal('folder')"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg></button>
+    <aside id="file-sidebar" class="absolute z-20 w-3/4 max-w-xs h-full bg-gray-800 border-r border-gray-700 -translate-x-full transition-transform duration-300 ease-in-out md:relative md:w-1/4 md:min-w-[250px] md:max-w-[350px] md:translate-x-0">
+        <div class="p-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white">Files</h2>
+                <button id="close-sidebar-btn" class="p-2 text-gray-400 hover:text-white md:hidden">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
             </div>
+            <ul class="file-tree space-y-1">
+                {% for item in items %}
+                    {{ render_tree_item(item, bot_index) }}
+                {% endfor %}
+            </ul>
         </div>
-        <ul class="file-tree space-y-1">
-            {% for item in items %}
-                {{ render_tree_item(item, bot_index) }}
-            {% endfor %}
-        </ul>
     </aside>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col bg-gray-800">
-        <div class="p-2 md:hidden border-b border-gray-700">
-             <button id="sidebar-toggle" class="p-2 rounded-md hover:bg-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            </button>
-        </div>
-        <div id="editor-container" class="flex-1">
-            <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                <svg class="w-16 h-16 mb-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10 10.5 5 5"></path><path d="m15 10.5-5 5"></path></svg>
-                <h3 class="text-lg font-medium text-gray-400">Select a file to edit</h3>
-                <p class="text-sm">You can also create new files or folders using the icons above.</p>
+    <!-- Main Content Wrapper -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Editor View -->
+        <main id="editor-view" class="flex-1 flex flex-col bg-gray-800">
+            <div class="flex items-center p-2 border-b border-gray-700">
+                <button id="sidebar-toggle" class="p-2 rounded-md hover:bg-gray-700 md:hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div class="flex-1"></div>
+                <button id="fullscreen-editor-btn" class="p-2 rounded-md hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                </button>
             </div>
-        </div>
-        <div id="console-container" class="flex flex-col border-t border-gray-700">
-            <div id="console-header" class="flex items-center justify-between p-2 bg-gray-900/30 cursor-row-resize">
-                <span class="font-mono text-sm text-gray-400">Console</span>
-                <div class="flex items-center space-x-2">
-                    <button hx-post="{{ url_for('start_bot', bot_index=bot_index) }}" hx-swap="none" class="px-4 py-2 text-sm rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Start</button>
-                    <button hx-post="{{ url_for('stop_bot', bot_index=bot_index) }}" hx-swap="none" class="px-4 py-2 text-sm rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Stop</button>
-                    <button id="console-toggle" class="p-2 rounded-md hover:bg-white/20">
-                        <svg class="w-5 h-5" id="console-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
-                    </button>
+            <div id="editor-container" class="flex-1">
+                <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                    <p>Select a file to begin editing.</p>
                 </div>
             </div>
-            <pre id="console-output" class="h-48 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto resize-none">Welcome to the console.</pre>
+        </main>
+
+        <!-- Console View -->
+        <div id="console-view" class="flex-1 flex-col bg-gray-800 hidden">
+            <div id="console-container" class="flex flex-col border-t border-gray-700 h-full">
+                <div id="console-header" class="flex items-center justify-between p-2 bg-gray-900/30 cursor-ns-resize">
+                    <span class="font-mono text-sm text-gray-400">Console</span>
+                    <div class="flex items-center space-x-2">
+                        <button hx-post="{{ url_for('start_bot', bot_index=bot_index) }}" hx-swap="none" class="px-4 py-2 text-sm rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Start</button>
+                        <button hx-post="{{ url_for('stop_bot', bot_index=bot_index) }}" hx-swap="none" class="px-4 py-2 text-sm rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Stop</button>
+                    </div>
+                </div>
+                <pre id="console-output" class="flex-1 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto resize-none">Welcome to the console.</pre>
+            </div>
         </div>
-    </main>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const views = {
+        editor: document.getElementById('editor-view'),
+        console: document.getElementById('console-view'),
+    };
     const sidebar = document.getElementById('file-sidebar');
-    const toggleButton = document.getElementById('sidebar-toggle');
-    const fileTree = document.querySelector('.file-tree');
-    const consoleContainer = document.getElementById('console-container');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+    const fullscreenBtn = document.getElementById('fullscreen-editor-btn');
+    const bottomNav = document.querySelector('nav');
     const consoleHeader = document.getElementById('console-header');
     const consoleOutput = document.getElementById('console-output');
-    const consoleToggleButton = document.getElementById('console-toggle');
-    const consoleToggleIcon = document.getElementById('console-toggle-icon');
     let isResizing = false;
-    let isMinimized = false;
 
-    // Mobile sidebar toggle
-    if (sidebar && toggleButton) {
-        toggleButton.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-        });
+
+    function showView(viewName) {
+        Object.values(views).forEach(view => view.classList.add('hidden'));
+        if (views[viewName]) {
+            views[viewName].classList.remove('hidden');
+            views[viewName].classList.add('flex');
+        }
     }
 
-    // Hide sidebar on file click in mobile
-    if (fileTree && sidebar) {
-        fileTree.addEventListener('click', (e) => {
-            if (e.target.classList.contains('file-link')) {
-                if (window.innerWidth < 768) { // md breakpoint
-                    sidebar.classList.add('-translate-x-full');
-                }
+    // Nav logic
+    bottomNav.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+        e.preventDefault();
+        const viewName = link.getAttribute('href').substring(1);
+        showView(viewName);
+    });
+
+    // Sidebar toggle logic
+    if (sidebar && sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => sidebar.classList.remove('-translate-x-full'));
+    }
+    if (sidebar && closeSidebarBtn) {
+        closeSidebarBtn.addEventListener('click', () => sidebar.classList.add('-translate-x-full'));
+    }
+
+    // Fullscreen editor logic
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            const elem = document.querySelector('#editor-view');
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+                bottomNav.classList.add('hidden');
+            } else {
+                document.exitFullscreen();
+                bottomNav.classList.remove('hidden');
+            }
+        });
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                bottomNav.classList.remove('hidden');
             }
         });
     }
 
-    // Tree view folder toggle
+    // Default view
+    showView('editor');
+
+    // Tree view toggle logic
     document.querySelectorAll('.file-tree .folder-toggle').forEach(toggle => {
         toggle.addEventListener('click', (e) => {
             if (e.target.classList.contains('file-link')) {
+                if (window.innerWidth < 768) {
+                    sidebar.classList.add('-translate-x-full');
+                }
                 return;
             }
             const parentLi = toggle.closest('.is-folder');
@@ -140,13 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Console resize
+    // Resizable console
     if (consoleHeader && consoleOutput) {
         consoleHeader.addEventListener('mousedown', (e) => {
-            // Don't resize if clicking on a button
-            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-                return;
-            }
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
 
             isResizing = true;
             document.body.style.userSelect = 'none';
@@ -158,8 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isResizing) return;
                 const deltaY = e.clientY - startY;
                 const newHeight = startHeight - deltaY;
-
-                if (newHeight > 40 && newHeight < (window.innerHeight * 0.7)) {
+                if (newHeight > 60) { // Min height
                     consoleOutput.style.height = `${newHeight}px`;
                 }
             }
@@ -175,25 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('mouseup', handleMouseUp);
         });
     }
-
-    // Console minimize/maximize toggle
-    if (consoleToggleButton && consoleOutput && consoleToggleIcon) {
-        consoleToggleButton.addEventListener('click', () => {
-            isMinimized = !isMinimized;
-            if (isMinimized) {
-                consoleOutput.style.height = '0px';
-                consoleToggleIcon.innerHTML = '<path fill-rule="evenodd" d="M10 5a1 1 0 011 1v8a1 1 0 11-2 0V6a1 1 0 011-1z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />';
-            } else {
-                consoleOutput.style.height = '12rem'; // 192px / h-48
-                consoleToggleIcon.innerHTML = '<path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />';
-            }
-        });
-    }
 });
-
-function showCreateModal(type) {
-    // Implement a modal for creating files/folders
-    alert(`Create new ${type}`);
-}
 </script>
 {% endblock %}

@@ -33,35 +33,29 @@
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
       }
     </style>
     {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-900 text-gray-100 antialiased p-4">
+<body class="bg-gray-900 text-gray-100 antialiased pb-20">
 
-    <header class="frosted-glass rounded-xl mb-4" style="margin: 1rem; border-radius: 0.75rem;">
-        <div class="container mx-auto px-6 py-4">
-            <div class="flex items-center justify-between">
-                <a href="{{ url_for('list_bots') if current_user.is_authenticated else url_for('login') }}" class="flex items-center space-x-2 text-lg font-semibold">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-                    <span>BotDash</span>
-                </a>
-                <nav class="hidden md:flex items-center space-x-4">
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('api_docs') }}" class="text-gray-400 hover:text-white transition">API Docs</a>
-                        <a href="{{ url_for('logout') }}" class="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition">Logout</a>
-                    {% else %}
-                        <a href="{{ url_for('login') }}" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition">Login</a>
-                    {% endif %}
-                </nav>
-            </div>
-        </div>
-    </header>
-
-    <main class="container mx-auto">
+    <main class="p-4">
         {% block content %}{% endblock %}
     </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 h-16 frosted-glass md:hidden">
+        <div class="flex items-center justify-around h-full">
+            <a href="#editor" class="flex flex-col items-center justify-center text-white transition">
+                 <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>
+                <span class="text-xs">Editor</span>
+            </a>
+            <a href="#console" class="flex flex-col items-center justify-center text-gray-400 hover:text-white transition">
+                <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path></svg>
+                <span class="text-xs">Console</span>
+            </a>
+        </div>
+    </nav>
 
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     {% block scripts %}{% endblock %}
