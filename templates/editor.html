@@ -1,156 +1,71 @@
-{% extends "file_manager.html" %}
+{% extends "layout.html" %}
 
-{% block body_attributes %}class="editor-view-active"{% endblock %}
-
-{% block title %}Editing: {{ path }}{% endblock %}
+{% block title %}Editor - {{ path }}{% endblock %}
 
 {% block head %}
-    {{ super() }}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/vibrant-ink.min.css">
-    <style>
-        /* Override layout padding for full-width editor */
-        .main-content {
-            padding: 0 !important;
-            position: relative; /* For positioning editor actions */
-            overflow: hidden;
-        }
-    </style>
-{% endblock %}
-
-{% block main_content %}
-<form class="editor-form" action="{{ url_for('save_file', bot_index=bot_index) }}" method="post">
-    <input type="hidden" name="path" value="{{ path }}">
-    <textarea id="code-editor" name="content">{{ content }}</textarea>
-    <div class="editor-actions">
-        <button type="button" id="delete-btn" class="btn btn-danger"><i data-feather="trash-2"></i></button>
-        <div style="flex-grow: 1;"></div> <!-- Spacer -->
-        <a href="{{ url_for('file_manager_index', bot_index=bot_index) }}" class="btn btn-secondary">Back to Files</a>
-        <button type="submit" class="btn btn-success"><i data-feather="save"></i> Save Changes</button>
-    </div>
-</form>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const layout = document.querySelector('[data-bot-index]');
-        const botIndex = layout.dataset.botIndex;
-
-        const showToast = (message, isError = false) => {
-            const toast = document.createElement('div');
-            toast.className = `toast ${isError ? 'error' : ''}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-            setTimeout(() => toast.style.opacity = '1', 10);
-        };
-
-        const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
-            lineNumbers: true,
-            mode: 'python',
-            theme: 'vibrant-ink',
-            lineWrapping: true,
-            matchBrackets: true,
-            autoCloseBrackets: true,
-            tabSize: 4,
-            indentUnit: 4,
-            extraKeys: {
-                "Ctrl-S": function(instance) { saveFile(); },
-                "Cmd-S": function(instance) { saveFile(); }
-            }
-        });
-
-        const editorForm = document.querySelector('.editor-form');
-        const editorActions = document.querySelector('.editor-actions');
-        const codeMirrorWrapper = editor.getWrapperElement();
-
-        codeMirrorWrapper.appendChild(editorActions);
-        editorForm.style.height = '100%';
-        codeMirrorWrapper.style.height = '100%';
-
-        const saveFile = async () => {
-            editor.save();
-            const formData = new FormData(editorForm);
-            const url = editorForm.action;
-
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    body: new URLSearchParams(formData)
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast(data.message);
-                } else {
-                    showToast(data.message, true);
-                }
-            } catch (e) {
-                showToast('An unexpected error occurred while saving.', true);
-            }
-        };
-
-        editorForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            saveFile();
-        });
-
-        const deleteBtn = document.getElementById('delete-btn');
-        deleteBtn.addEventListener('click', async () => {
-            const path = document.querySelector('input[name="path"]').value;
-            if (confirm(`Are you sure you want to permanently delete this file?\\n\\n${path}`)) {
-                const res = await fetch(`/bot/${botIndex}/delete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ path })
-                });
-
-                try {
-                    const data = await res.json();
-                    if (data.success) {
-                        window.location.href = `/bot/${botIndex}/`;
-                    } else {
-                        alert(`Error: ${data.message}`);
-                    }
-                } catch(e) {
-                    alert('An unexpected error occurred while trying to delete the file.');
-                }
-            }
-        });
-    });
-</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/monokai.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
 <style>
-    .CodeMirror {
-        font-size: 14px;
-        flex-grow: 1;
-        height: auto;
-        border-radius: 0;
-        border: none;
-    }
-    .editor-actions {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        padding: 1rem;
-        background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
-        z-index: 100;
-        display: flex;
-        gap: 1rem;
-    }
-    #delete-btn {
-        background-color: #5c2828;
-    }
-    #delete-btn:hover {
-        background-color: var(--danger-color);
-    }
+  .CodeMirror {
+    height: 100%;
+    font-size: 16px;
+  }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-12rem)] bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+    <!-- Editor Header -->
+    <div class="flex items-center justify-between p-3 bg-gray-900/30 border-b border-gray-700">
+        <h2 class="text-lg font-semibold text-white">{{ path }}</h2>
+        <div class="space-x-2">
+            <button class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition" onclick="saveFile()">Save</button>
+        </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="flex-1">
+        <textarea id="editor">{{ content }}</textarea>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+        lineNumbers: true,
+        mode: 'python',
+        theme: 'monokai',
+        indentUnit: 4
+    });
+
+    window.saveFile = function() {
+        const content = editor.getValue();
+        const path = "{{ path }}";
+        const bot_index = "{{ bot_index }}";
+
+        const formData = new FormData();
+        formData.append('content', content);
+        formData.append('path', path);
+
+        fetch(`/bot/${bot_index}/save`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('File saved successfully');
+            } else {
+                alert('Error saving file: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+        });
+    }
+});
+</script>
 {% endblock %}

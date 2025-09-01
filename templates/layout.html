@@ -1,181 +1,68 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - Bot Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              gray: {
+                900: '#101010',
+                800: '#1D1D1D',
+                700: '#2B2B2B',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #101010;
+      }
+      .frosted-glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+    </style>
     {% block head %}{% endblock %}
 </head>
-<body {% block body_attributes %}{% endblock %}>
+<body class="bg-gray-900 text-gray-100 antialiased">
 
-    <header class="site-header">
-        <div class="container nav-container">
-            <a href="{{ url_for('list_bots') if current_user.is_authenticated else url_for('login') }}" class="logo">
-                <i data-feather="terminal"></i>
-                <span>BotDash</span>
-            </a>
-            <nav class="main-nav">
-                {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('api_docs') }}">API Docs</a>
-                    <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
-                {% else %}
-                    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
-                {% endif %}
-            </nav>
+    <header class="sticky top-0 z-50 frosted-glass">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between py-4">
+                <a href="{{ url_for('list_bots') if current_user.is_authenticated else url_for('login') }}" class="flex items-center space-x-2 text-lg font-semibold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                    <span>BotDash</span>
+                </a>
+                <nav class="hidden md:flex items-center space-x-4">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('api_docs') }}" class="text-gray-400 hover:text-white transition">API Docs</a>
+                        <a href="{{ url_for('logout') }}" class="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition">Login</a>
+                    {% endif %}
+                </nav>
+            </div>
         </div>
     </header>
 
-    <main class="container page-content">
+    <main class="container mx-auto px-4 py-8">
         {% block content %}{% endblock %}
     </main>
 
-    {% if current_user.is_authenticated %}
-    <div id="console-container" class="console-container hidden">
-        <div class="console-header" id="console-header-drag-handle">
-            <div class="console-dots">
-                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-            </div>
-            <span class="console-title">Console</span>
-            <div class="console-actions">
-                <button id="console-close-btn" class="btn-icon" title="Close Console"><i data-feather="x"></i></button>
-            </div>
-        </div>
-        <div class="console-control-bar">
-            <div id="console-bot-controls" class="console-bot-controls"></div>
-            <div id="console-status-display" class="status-badge hidden"></div>
-        </div>
-        <pre id="console-output" class="console-output">Welcome to the console.</pre>
-    </div>
-
-    <button id="console-toggle-btn" class="fab" title="Toggle Console">
-        <i data-feather="terminal"></i>
-    </button>
-    {% endif %}
-
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-    <script>
-        feather.replace();
-    </script>
-
-    {% block scripts %}
-    {% if current_user.is_authenticated %}
-    <script>
-        // --- GLOBAL FLOATING CONSOLE LOGIC ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const consoleContainer = document.getElementById('console-container');
-            const consoleToggleBtn = document.getElementById('console-toggle-btn');
-            const consoleCloseBtn = document.getElementById('console-close-btn');
-            const consoleHeader = document.getElementById('console-header-drag-handle');
-            const consoleOutput = document.getElementById('console-output');
-            const consoleStatus = document.getElementById('console-status-display');
-
-            if (!consoleContainer) return;
-
-            consoleToggleBtn.addEventListener('click', () => {
-                consoleContainer.classList.toggle('hidden');
-                if (!consoleContainer.classList.contains('hidden')) {
-                    startLogPolling();
-                }
-            });
-            consoleCloseBtn.addEventListener('click', () => consoleContainer.classList.add('hidden'));
-
-            let isDragging = false, offsetX, offsetY;
-            const onMouseDown = (e) => {
-                isDragging = true;
-                offsetX = e.clientX - consoleContainer.offsetLeft;
-                offsetY = e.clientY - consoleContainer.offsetTop;
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-                consoleHeader.style.cursor = 'grabbing';
-            };
-            const onMouseMove = (e) => {
-                if (!isDragging) return;
-                let x = e.clientX - offsetX;
-                let y = e.clientY - offsetY;
-                const maxX = window.innerWidth - consoleContainer.offsetWidth;
-                const maxY = window.innerHeight - consoleContainer.offsetHeight;
-                consoleContainer.style.left = `${Math.min(maxX, Math.max(0, x))}px`;
-                consoleContainer.style.top = `${Math.min(maxY, Math.max(0, y))}px`;
-            };
-            const onMouseUp = () => {
-                isDragging = false;
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-                consoleHeader.style.cursor = 'move';
-            };
-            consoleHeader.addEventListener('mousedown', onMouseDown);
-
-            function setupConsoleBotControls() {
-                const controlsContainer = document.getElementById('console-bot-controls');
-                const layout = document.querySelector('[data-bot-index]');
-                if (!layout || !controlsContainer) return;
-
-                const botIndex = layout.dataset.botIndex;
-                controlsContainer.innerHTML = `
-                    <a href="/bot/${botIndex}/start" class="btn btn-success"><i data-feather="play"></i> Start</a>
-                    <a href="/bot/${botIndex}/stop" class="btn btn-danger"><i data-feather="stop-circle"></i> Stop</a>
-                `;
-                feather.replace();
-            }
-
-            let statusPollInterval, logPollInterval, lastLogSize = 0;
-
-            const updateStatus = async (botIndex) => {
-                try {
-                    const res = await fetch(`/bot/${botIndex}/status`);
-                    const data = await res.json();
-                    consoleStatus.innerHTML = `Status: <b>${data.status}</b> (${data.ram_usage} MB)`;
-                    consoleStatus.className = `status-badge ${data.status.toLowerCase()}`;
-                } catch (e) {
-                    consoleStatus.innerHTML = 'Status: Error';
-                }
-            };
-
-            const pollLogs = async (botIndex) => {
-                const url = `/bot/${botIndex}/logs?size=${lastLogSize}`;
-                try {
-                    const res = await fetch(url);
-                    if(res.status === 404) return;
-                    const data = await res.json();
-                    if (data.log_data) {
-                        if (consoleOutput.textContent === 'Connecting to console...') {
-                            consoleOutput.textContent = '';
-                        }
-                        consoleOutput.textContent += data.log_data;
-                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                    }
-                    lastLogSize = data.log_size;
-                } catch (e) { console.error("Log poll failed:", e); }
-            };
-
-            function startLogPolling() {
-                const layout = document.querySelector('[data-bot-index]');
-                if (!layout) {
-                    consoleOutput.textContent = "Bot controls and console are only available in a bot's file manager.";
-                    consoleStatus.classList.add('hidden');
-                    return;
-                }
-
-                const botIndex = layout.dataset.botIndex;
-                if (logPollInterval) clearInterval(logPollInterval);
-                if (statusPollInterval) clearInterval(statusPollInterval);
-
-                consoleOutput.textContent = 'Connecting to console...';
-                lastLogSize = 0;
-
-                statusPollInterval = setInterval(() => updateStatus(botIndex), 3000);
-                logPollInterval = setInterval(() => pollLogs(botIndex), 2500);
-                updateStatus(botIndex);
-                pollLogs(botIndex);
-                setupConsoleBotControls();
-            }
-        });
-    </script>
-    {% endif %}
-    {% endblock %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>

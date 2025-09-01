@@ -2,254 +2,101 @@
 
 {% block title %}File Manager{% endblock %}
 
+{% block head %}
+<style>
+  .file-tree .folder-toggle .chevron {
+    transition: transform 0.2s ease-in-out;
+  }
+  .file-tree .nested-tree {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+  }
+  .file-tree .is-folder.open > .nested-tree {
+    max-height: 1000px; /* Arbitrary large number */
+  }
+  .file-tree .is-folder.open > .folder-toggle .chevron {
+    transform: rotate(90deg);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="file-manager-layout" data-bot-index="{{ bot_index }}">
-    <!-- Sidebar for File Tree -->
-    <aside class="file-sidebar">
-        <div class="sidebar-header">
-            <h3>File Explorer</h3>
-            <div class="sidebar-actions">
-                <button class="btn-icon" id="new-file-btn" title="New File"><i data-feather="file-plus"></i></button>
-                <button class="btn-icon" id="new-folder-btn" title="New Folder"><i data-feather="folder-plus"></i></button>
+<div class="flex h-[calc(100vh-12rem)] bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden" data-bot-index="{{ bot_index }}">
+    <!-- File Sidebar -->
+    <aside class="w-1/4 min-w-[250px] max-w-[350px] bg-gray-900/30 p-4 overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Files</h2>
+            <div class="space-x-2">
+                <button title="New File" class="text-gray-400 hover:text-white transition" onclick="showCreateModal('file')"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></button>
+                <button title="New Folder" class="text-gray-400 hover:text-white transition" onclick="showCreateModal('folder')"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg></button>
             </div>
         </div>
-        <div class="file-tree-container">
-            {% macro render_tree(items) %}
-                <ul class="file-tree">
-                    {% for item in items %}
-                        <li class="tree-item {% if item.is_dir %}is-folder{% endif %}" data-path="{{ item.path }}" data-name="{{ item.name }}">
-                            {% if item.is_dir %}
-                                <div class="tree-item-content folder-toggle">
-                                    <i data-feather="chevron-right" class="chevron"></i>
-                                    <i data-feather="folder" class="icon"></i>
-                                    <span>{{ item.name }}</span>
-                                </div>
-                                <div class="nested-tree">
-                                    {{ render_tree(item.children) }}
-                                </div>
-                            {% else %}
-                                <a href="{{ url_for('edit_file', bot_index=bot_index, path=item.path) }}" class="tree-item-content">
-                                    <i data-feather="file-text" class="icon"></i>
-                                    <span>{{ item.name }}</span>
-                                </a>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endmacro %}
-            {{ render_tree(items) }}
-        </div>
+        <ul class="file-tree space-y-1">
+            {% for item in items %}
+                {{ render_tree_item(item, bot_index) }}
+            {% endfor %}
+        </ul>
     </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-        {% block main_content %}
-        <div class="content-placeholder">
-            <div class="placeholder-icon"><i data-feather="edit-3"></i></div>
-            <h2>Select a file to start editing</h2>
-            <p>Choose a file from the explorer on the left to view or modify its content.</p>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col bg-gray-800">
+        <div id="editor-container" class="flex-1">
+            <!-- Editor will be loaded here via HTMX or similar -->
+            <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                <svg class="w-16 h-16 mb-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10 10.5 5 5"></path><path d="m15 10.5-5 5"></path></svg>
+                <h3 class="text-lg font-medium text-gray-400">Select a file to edit</h3>
+                <p class="text-sm">You can also create new files or folders using the icons above.</p>
+            </div>
         </div>
-        {% endblock %}
+        <div id="console-output" class="h-48 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto border-t border-gray-700">
+            Welcome to the console.
+        </div>
     </main>
 </div>
 
-<!-- Context Menu -->
-<div id="context-menu" class="context-menu frosted-glass">
-    <ul>
-        <li id="context-edit"><i data-feather="edit-2"></i><span>Edit</span></li>
-        <li id="context-rename"><i data-feather="type"></i><span>Rename</span></li>
-        <li id="context-delete" class="danger-action"><i data-feather="trash-2"></i><span>Delete</span></li>
-    </ul>
-</div>
-
-<!-- Create/Rename Modal -->
-<div id="modal-backdrop" class="modal-backdrop hidden"></div>
-<div id="create-modal" class="modal frosted-glass hidden">
-    <h3 id="modal-title">Create New</h3>
-    <form id="create-form">
-        <input type="text" id="modal-input" name="name" required autocomplete="off">
-        <div class="modal-actions">
-            <button type="button" id="modal-cancel" class="btn btn-secondary">Cancel</button>
-            <button type="submit" id="modal-submit" class="btn btn-primary">Create</button>
+{% macro render_tree_item(item, bot_index) %}
+<li class="tree-item {% if item.is_dir %}is-folder{% endif %}" data-path="{{ item.path }}">
+    <div class="folder-toggle flex items-center justify-between p-2 rounded-md hover:bg-gray-700/50 transition cursor-pointer">
+        <div class="flex items-center">
+            {% if item.is_dir %}
+                <svg class="chevron w-4 h-4 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg class="w-5 h-5 mr-2 text-yellow-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            {% else %}
+                <svg class="w-5 h-5 mr-2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            {% endif %}
+            <a href="{{ url_for('edit_file', bot_index=bot_index, path=item.path) }}" class="text-gray-300 hover:text-white">{{ item.name }}</a>
         </div>
-    </form>
-</div>
+    </div>
+    {% if item.is_dir %}
+        <ul class="nested-tree ml-4 pl-2 border-l border-gray-700 space-y-1 mt-1">
+            {% for child in item.children %}
+                {{ render_tree_item(child, bot_index) }}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>
+{% endmacro %}
 
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const layout = document.querySelector('[data-bot-index]');
-    const botIndex = layout.dataset.botIndex;
+    document.querySelectorAll('.file-tree .folder-toggle').forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            // Allow clicking the link
+            if (e.target.tagName === 'A') return;
 
-    const contextMenu = document.getElementById('context-menu');
-    const modalBackdrop = document.getElementById('modal-backdrop');
-    const modal = document.getElementById('create-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalForm = document.getElementById('create-form');
-    const modalInput = document.getElementById('modal-input');
-    const modalSubmit = document.getElementById('modal-submit');
-    const fileTreeContainer = document.querySelector('.file-tree-container');
-
-    const showToast = (message, isError = false) => {
-        const toast = document.createElement('div');
-        toast.className = `toast ${isError ? 'error' : ''}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-        setTimeout(() => toast.style.opacity = '1', 10);
-    };
-
-    const apiCall = async (url, body) => {
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams(body)
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'API call failed');
-            return data;
-        } catch (error) {
-            showToast(error.message, true);
-            return null;
-        }
-    };
-
-    const showModal = (title, placeholder, buttonText, value = '') => {
-        modalTitle.textContent = title;
-        modalInput.placeholder = placeholder;
-        modalInput.value = value;
-        modalSubmit.textContent = buttonText;
-        modal.classList.remove('hidden');
-        modalBackdrop.classList.remove('hidden');
-        modalInput.focus();
-    };
-
-    const hideModal = () => {
-        modal.classList.add('hidden');
-        modalBackdrop.classList.add('hidden');
-        modalForm.reset();
-        modalForm.onsubmit = null;
-    };
-
-    document.getElementById('modal-cancel').addEventListener('click', hideModal);
-    modalBackdrop.addEventListener('click', hideModal);
-
-    let activeItem = null;
-    const showContextMenu = (e) => {
-        e.preventDefault();
-        activeItem = e.target.closest('.tree-item');
-        if (!activeItem) return;
-
-        contextMenu.style.top = `${e.clientY}px`;
-        contextMenu.style.left = `${e.clientX}px`;
-        contextMenu.classList.remove('hidden');
-        const isFolder = activeItem.classList.contains('is-folder');
-        document.getElementById('context-edit').style.display = isFolder ? 'none' : 'block';
-    };
-
-    const hideContextMenu = () => contextMenu.classList.add('hidden');
-    fileTreeContainer.addEventListener('contextmenu', showContextMenu);
-    document.addEventListener('click', hideContextMenu);
-
-    const handleCreate = (type) => {
-        let path = '';
-        if (activeItem && activeItem.classList.contains('is-folder')) {
-            path = activeItem.dataset.path;
-        }
-        showModal(`Create New ${type}`, `Enter ${type} name...`, 'Create');
-        modalForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const name = modalInput.value;
-            const res = await apiCall(
-                `/bot/${botIndex}/create`,
-                { type, name, path }
-            );
-            if (res) {
-                showToast(res.message);
-                hideModal();
-                window.location.reload();
+            const parentLi = toggle.closest('.is-folder');
+            if (parentLi) {
+                parentLi.classList.toggle('open');
             }
-        };
-    };
-
-    const handleRename = () => {
-        if (!activeItem) return;
-        const oldName = activeItem.dataset.name;
-        const path = activeItem.dataset.path;
-        showModal('Rename Item', '', 'Rename', oldName);
-        modalForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const new_name = modalInput.value;
-            if (new_name === oldName) return hideModal();
-            const res = await apiCall(
-                `/bot/${botIndex}/rename`,
-                { path, new_name }
-            );
-            if (res) {
-                showToast(res.message);
-                hideModal();
-                window.location.reload();
-            }
-        };
-    };
-
-    const handleDelete = async () => {
-        if (!activeItem) return;
-        const path = activeItem.dataset.path;
-        const name = activeItem.dataset.name;
-        if (!confirm(`Are you sure you want to delete '${name}'?`)) return;
-
-        const res = await apiCall(
-            `/bot/${botIndex}/delete`,
-            { path }
-        );
-        if (res) {
-            showToast(res.message);
-            activeItem.remove();
-            activeItem = null;
-        }
-    };
-
-    document.getElementById('new-file-btn').addEventListener('click', () => handleCreate('file'));
-    document.getElementById('new-folder-btn').addEventListener('click', () => handleCreate('folder'));
-    document.getElementById('context-edit').addEventListener('click', () => {
-        if (activeItem) activeItem.querySelector('a').click();
-    });
-    document.getElementById('context-rename').addEventListener('click', handleRename);
-    document.getElementById('context-delete').addEventListener('click', handleDelete);
-
-    document.querySelectorAll('.folder-toggle').forEach(toggle => {
-        toggle.addEventListener('click', e => {
-            e.preventDefault();
-            const parentLi = toggle.closest('.tree-item');
-            parentLi.classList.toggle('open');
         });
     });
 });
-</script>
-<style>
-/* Simple Toast styling */
-.toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--success-color);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    box-shadow: var(--shadow-lg);
-    z-index: 2000;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+
+function showCreateModal(type) {
+    // Implement a modal for creating files/folders
+    alert(`Create new ${type}`);
 }
-.toast.error { background-color: var(--danger-color); }
-</style>
+</script>
+
 {% endblock %}

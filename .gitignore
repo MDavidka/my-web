@@ -1,0 +1,27 @@
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-error.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+.eggs/
+*.egg-info/
+dist/
+build/
+*.so
+
+# Logs
+logs/
+*.log
