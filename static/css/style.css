@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
     --bg-color: #101010;
     --primary-bg: #1d1d1d;
     --secondary-bg: #2b2b2b;
-    --glass-bg: rgba(40, 40, 40, 0.7);
+    --glass-bg: rgba(255, 255, 255, 0.05);
     --border-color: rgba(255, 255, 255, 0.1);
 
     --text-primary: #e6e6e6;
@@ -15,7 +15,7 @@
     --success-color: #22c55e;
     --danger-color: #ef4444;
 
-    --font-family: 'Poppins', sans-serif;
+    --font-family: 'Inter', sans-serif;
     --font-mono: 'Fira Code', 'Courier New', monospace;
 
     --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -37,6 +37,7 @@ html {
 
 body {
     background-color: var(--bg-color);
+    background-image: none;
     color: var(--text-primary);
     font-family: var(--font-family);
     margin: 0;
@@ -71,11 +72,12 @@ a:hover {
 /* --- Utility Classes --- */
 .frosted-glass {
     background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* --- Dashboard Styles --- */
@@ -642,23 +644,74 @@ a:hover {
 .auth-container {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 5vh;
+    align-items: center;
+    min-height: calc(100vh - 120px); /* Adjust for header */
+    padding: 2rem;
 }
 .auth-form-wrapper {
     width: 100%;
-    max-width: 400px;
-    padding: 2rem;
+    max-width: 420px;
+    padding: 3rem;
     text-align: center;
+    transform: perspective(1000px) rotateX(0deg);
+    transition: transform 0.4s ease-out, box-shadow 0.4s ease-out;
 }
 .auth-title {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #fff;
 }
 .auth-subtitle {
-    color: var(--text-secondary);
-    margin-bottom: 1.5rem;
+    color: #a1a1a1;
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
 }
+
+/* New Discord Button Style */
+a.btn-discord {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    width: 100%;
+
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+a.btn-discord:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(88, 101, 242, 0.4), 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+a.btn-discord:active {
+    transform: translateY(0);
+    box-shadow: 0 0 10px rgba(88, 101, 242, 0.3), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+a.btn-discord svg {
+    width: 24px;
+    height: 24px;
+    color: #fff;
+}
+
 .auth-form .form-group {
     margin-bottom: 1rem;
     text-align: left;
