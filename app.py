@@ -294,7 +294,10 @@ def edit_file(bot_index):
     with open(path_abs, 'r') as f:
         content = f.read()
 
-    return render_template("editor.html", content=content, path=path_rel, bot_index=bot_index)
+    if 'HX-Request' in request.headers:
+        return render_template("editor_partial.html", content=content, path=path_rel, bot_index=bot_index)
+
+    return render_template("editor_page.html", content=content, path=path_rel, bot_index=bot_index)
 
 @app.route('/bot/<int:bot_index>/save', methods=['POST'])
 @login_required

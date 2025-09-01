@@ -38,11 +38,11 @@
     </style>
     {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-900 text-gray-100 antialiased">
+<body class="bg-gray-900 text-gray-100 antialiased p-4">
 
-    <header class="sticky top-0 z-50 frosted-glass">
-        <div class="container mx-auto px-4">
-            <div class="flex items-center justify-between py-4">
+    <header class="frosted-glass rounded-xl mb-4" style="margin: 1rem; border-radius: 0.75rem;">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
                 <a href="{{ url_for('list_bots') if current_user.is_authenticated else url_for('login') }}" class="flex items-center space-x-2 text-lg font-semibold">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
                     <span>BotDash</span>
@@ -59,10 +59,11 @@
         </div>
     </header>
 
-    <main class="container mx-auto px-4 py-8">
+    <main class="container mx-auto">
         {% block content %}{% endblock %}
     </main>
 
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

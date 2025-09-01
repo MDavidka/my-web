@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}Editor - {{ path }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/monokai.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+<style>
+  .CodeMirror {
+    height: 100%;
+    font-size: 16px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-10rem)] bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+    <!-- This would ideally be a file sidebar component, but for now we just show the editor -->
+    <main class="flex-1 flex flex-col bg-gray-800">
+        {% include 'editor_partial.html' %}
+    </main>
+</div>
+{% endblock %}

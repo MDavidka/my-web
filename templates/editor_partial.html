@@ -1,22 +1,4 @@
-{% extends "layout.html" %}
-
-{% block title %}Editor - {{ path }}{% endblock %}
-
-{% block head %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/monokai.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
-<style>
-  .CodeMirror {
-    height: 100%;
-    font-size: 16px;
-  }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="flex flex-col h-[calc(100vh-12rem)] bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+<div class="flex flex-col h-full bg-gray-800/50">
     <!-- Editor Header -->
     <div class="flex items-center justify-between p-3 bg-gray-900/30 border-b border-gray-700">
         <h2 class="text-lg font-semibold text-white">{{ path }}</h2>
@@ -26,13 +8,12 @@
     </div>
 
     <!-- Editor -->
-    <div class="flex-1">
+    <div class="flex-1 h-full">
         <textarea id="editor">{{ content }}</textarea>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
     const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
         lineNumbers: true,
         mode: 'python',
@@ -56,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Maybe show a more subtle success message
                 alert('File saved successfully');
             } else {
                 alert('Error saving file: ' + data.message);
@@ -66,6 +48,4 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('An unexpected error occurred.');
         });
     }
-});
 </script>
-{% endblock %}
