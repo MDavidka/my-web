@@ -1,0 +1,280 @@
+/* Additional Editor Themes */
+
+/* Light Theme */
+.editor-theme-light {
+    --editor-bg: #ffffff;
+    --editor-sidebar-bg: #f8f9fa;
+    --editor-tab-bg: #e9ecef;
+    --editor-tab-active-bg: #ffffff;
+    --editor-border: #dee2e6;
+    --editor-text: #212529;
+    --editor-text-muted: #6c757d;
+    --editor-accent: #0066cc;
+    --editor-accent-hover: #0052a3;
+}
+
+/* Dracula Theme */
+.editor-theme-dracula {
+    --editor-bg: #282a36;
+    --editor-sidebar-bg: #21222c;
+    --editor-tab-bg: #191a21;
+    --editor-tab-active-bg: #282a36;
+    --editor-border: #44475a;
+    --editor-text: #f8f8f2;
+    --editor-text-muted: #6272a4;
+    --editor-accent: #bd93f9;
+    --editor-accent-hover: #a578e8;
+}
+
+/* Material Theme */
+.editor-theme-material {
+    --editor-bg: #263238;
+    --editor-sidebar-bg: #1e272c;
+    --editor-tab-bg: #1a2327;
+    --editor-tab-active-bg: #263238;
+    --editor-border: #37474f;
+    --editor-text: #eeffff;
+    --editor-text-muted: #546e7a;
+    --editor-accent: #80cbc4;
+    --editor-accent-hover: #4db6ac;
+}
+
+/* Solarized Dark Theme */
+.editor-theme-solarized-dark {
+    --editor-bg: #002b36;
+    --editor-sidebar-bg: #073642;
+    --editor-tab-bg: #073642;
+    --editor-tab-active-bg: #002b36;
+    --editor-border: #586e75;
+    --editor-text: #839496;
+    --editor-text-muted: #657b83;
+    --editor-accent: #268bd2;
+    --editor-accent-hover: #2176bd;
+}
+
+/* High Contrast Theme */
+.editor-theme-high-contrast {
+    --editor-bg: #000000;
+    --editor-sidebar-bg: #1a1a1a;
+    --editor-tab-bg: #333333;
+    --editor-tab-active-bg: #000000;
+    --editor-border: #ffffff;
+    --editor-text: #ffffff;
+    --editor-text-muted: #cccccc;
+    --editor-accent: #00ff00;
+    --editor-accent-hover: #00cc00;
+}
+
+/* Theme-specific CodeMirror adjustments */
+.editor-theme-light .CodeMirror {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+.editor-theme-light .CodeMirror-gutters {
+    background: #f8f9fa !important;
+    border-right-color: #dee2e6 !important;
+}
+
+.editor-theme-dracula .CodeMirror {
+    background: #282a36 !important;
+}
+
+.editor-theme-material .CodeMirror {
+    background: #263238 !important;
+}
+
+.editor-theme-solarized-dark .CodeMirror {
+    background: #002b36 !important;
+}
+
+.editor-theme-high-contrast .CodeMirror {
+    background: #000000 !important;
+    color: #ffffff !important;
+}
+
+.editor-theme-high-contrast .CodeMirror-gutters {
+    background: #1a1a1a !important;
+    border-right-color: #ffffff !important;
+}
+
+/* Syntax highlighting adjustments for custom themes */
+.editor-theme-dracula .cm-keyword { color: #ff79c6 !important; }
+.editor-theme-dracula .cm-string { color: #f1fa8c !important; }
+.editor-theme-dracula .cm-comment { color: #6272a4 !important; }
+.editor-theme-dracula .cm-number { color: #bd93f9 !important; }
+
+.editor-theme-material .cm-keyword { color: #c792ea !important; }
+.editor-theme-material .cm-string { color: #c3e88d !important; }
+.editor-theme-material .cm-comment { color: #546e7a !important; }
+.editor-theme-material .cm-number { color: #f78c6c !important; }
+
+/* Terminal theme adjustments */
+.editor-theme-light .integrated-terminal {
+    --terminal-bg: #ffffff;
+    --terminal-text: #212529;
+    --terminal-border: #dee2e6;
+}
+
+.editor-theme-dracula .integrated-terminal {
+    --terminal-bg: #282a36;
+    --terminal-text: #f8f8f2;
+    --terminal-border: #44475a;
+}
+
+.integrated-terminal {
+    --terminal-bg: var(--editor-bg);
+    --terminal-text: var(--editor-text);
+    --terminal-border: var(--editor-border);
+    
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 300px;
+    background: var(--terminal-bg);
+    border-top: 1px solid var(--terminal-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--editor-tab-bg);
+    border-bottom: 1px solid var(--terminal-border);
+    min-height: 40px;
+}
+
+.terminal-tabs {
+    display: flex;
+}
+
+.terminal-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--terminal-bg);
+    border-radius: 4px 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--terminal-text);
+}
+
+.terminal-tab-close {
+    background: none;
+    border: none;
+    color: var(--editor-text-muted);
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.25rem;
+}
+
+.terminal-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.terminal-output {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--terminal-text);
+}
+
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--terminal-border);
+    background: var(--terminal-bg);
+}
+
+.terminal-prompt {
+    color: var(--editor-accent);
+    margin-right: 0.5rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.terminal-input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--terminal-text);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.terminal-line {
+    margin-bottom: 0.25rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.terminal-command {
+    color: var(--editor-accent);
+    font-weight: 500;
+}
+
+.terminal-output {
+    color: var(--terminal-text);
+}
+
+.terminal-error {
+    color: var(--editor-error);
+}
+
+/* Log syntax highlighting */
+.log-content {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    background: var(--editor-bg);
+    color: var(--editor-text);
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.log-error {
+    color: var(--editor-error);
+    font-weight: 500;
+}
+
+.log-warning {
+    color: var(--editor-warning);
+}
+
+.log-info {
+    color: var(--editor-accent);
+}
+
+/* Mobile-specific terminal */
+@media (max-width: 768px) {
+    .integrated-terminal {
+        height: 250px;
+    }
+    
+    .terminal-input {
+        font-size: 16px; /* Prevent zoom */
+    }
+    
+    .terminal-output {
+        font-size: 14px;
+        padding: 0.75rem;
+    }
+    
+    .terminal-input-line {
+        padding: 0.75rem;
+    }
+}

@@ -1,0 +1,289 @@
+{% extends "layout.html" %}
+
+{% block title %}File Editor{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/editor.css') }}">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script>
+    window.botIndex = {{ bot_index }};
+</script>
+{% endblock %}
+
+{% macro render_tree_item(item, bot_index, level=0) %}
+<li class="tree-item {% if item.is_dir %}tree-folder{% else %}tree-file{% endif %}" 
+    data-path="{{ item.path }}" 
+    data-level="{{ level }}">
+    <div class="tree-item-content" style="padding-left: {{ level * 1.5 + 0.75 }}rem;">
+        {% if item.is_dir %}
+            <i class="folder-toggle tree-icon" data-lucide="chevron-right"></i>
+            <i class="tree-icon" data-lucide="folder"></i>
+        {% else %}
+            <i class="tree-icon" data-lucide="file-text"></i>
+        {% endif %}
+        <span class="tree-name">{{ item.name }}</span>
+    </div>
+    {% if item.is_dir and item.children %}
+        <ul class="nested-tree">
+            {% for child in item.children %}
+                {{ render_tree_item(child, bot_index, level + 1) }}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>
+{% endmacro %}
+
+{% block content %}
+<div class="modern-editor">
+    <!-- Sidebar -->
+    <aside class="editor-sidebar" id="editor-sidebar">
+        <div class="sidebar-header">
+            <h3 class="sidebar-title">Explorer</h3>
+            <div class="sidebar-actions">
+                <button class="btn-icon" onclick="fileEditor.showCreateModal('file')" title="New File">
+                    <i data-lucide="file-plus"></i>
+                </button>
+                <button class="btn-icon" onclick="fileEditor.showCreateModal('folder')" title="New Folder">
+                    <i data-lucide="folder-plus"></i>
+                </button>
+                <button class="btn-icon" onclick="fileEditor.refreshFileTree()" title="Refresh">
+                    <i data-lucide="refresh-cw"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="file-tree-container">
+            <ul class="file-tree">
+                {% for item in items %}
+                    {{ render_tree_item(item, bot_index) }}
+                {% endfor %}
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Editor -->
+    <main class="editor-main">
+        <!-- Toolbar -->
+        <div class="editor-toolbar">
+            <div class="toolbar-left">
+                <button class="btn-icon mobile-only" onclick="fileEditor.toggleSidebar()" title="Toggle Sidebar">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="breadcrumb" id="breadcrumb">
+                    <span class="breadcrumb-root">~</span>
+                </div>
+            </div>
+            
+            <div class="toolbar-actions">
+                <button class="btn-icon" onclick="fileEditor.saveActiveFile()" title="Save (Ctrl+S)">
+                    <i data-lucide="save"></i>
+                </button>
+                <button class="btn-icon" onclick="fileEditor.showSearchDialog()" title="Search (Ctrl+F)">
+                    <i data-lucide="search"></i>
+                </button>
+                <button class="btn-icon" id="settings-btn" title="Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+                <div class="status-indicator">
+                    <div class="status-dot {{ 'running' if bot_status.status == 'RUNNING' else 'stopped' }}"></div>
+                    <span class="status-text">{{ bot_status.status }}</span>
+                    {% if bot_status.ram > 0 %}
+                        <span class="ram-usage">{{ bot_status.ram }}MB</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="editor-tabs-container">
+            <div class="editor-tabs" id="editor-tabs">
+                <!-- Tabs will be dynamically added here -->
+            </div>
+        </div>
+
+        <!-- Editor Content -->
+        <div class="editor-content" id="editor-content">
+            <div class="welcome-screen">
+                <div class="welcome-content">
+                    <i data-lucide="code-2" class="welcome-icon"></i>
+                    <h2>Welcome to the File Editor</h2>
+                    <p>Select a file from the sidebar to start editing, or create a new file to get started.</p>
+                    <div class="welcome-actions">
+                        <button onclick="fileEditor.showCreateModal('file')" class="btn btn-primary">
+                            <i data-lucide="file-plus"></i>
+                            New File
+                        </button>
+                        <button onclick="fileEditor.showCreateModal('folder')" class="btn btn-secondary">
+                            <i data-lucide="folder-plus"></i>
+                            New Folder
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Context Menu -->
+<div id="context-menu" class="context-menu hidden">
+    <ul class="context-menu-items">
+        <!-- Items will be dynamically populated -->
+    </ul>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loading-indicator" class="loading-indicator hidden">
+    <div class="loading-spinner"></div>
+    <span>Loading file...</span>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="settings-modal hidden">
+    <div class="settings-modal-content">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-semibold text-white">Editor Settings</h2>
+            <button onclick="fileEditor.hideSettingsModal()" class="btn-icon">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Appearance</h3>
+            <div class="setting-item">
+                <label class="setting-label">Theme</label>
+                <div class="setting-control">
+                    <select onchange="fileEditor.updateSetting('theme', this.value)">
+                        <option value="monokai">Monokai</option>
+                        <option value="dracula">Dracula</option>
+                        <option value="material">Material</option>
+                        <option value="default">Light</option>
+                    </select>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label class="setting-label">Font Size</label>
+                <div class="setting-control">
+                    <input type="range" min="12" max="20" value="14" 
+                           onchange="fileEditor.updateSetting('fontSize', parseInt(this.value))">
+                </div>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Editor</h3>
+            <div class="setting-item">
+                <label class="setting-label">Tab Size</label>
+                <div class="setting-control">
+                    <select onchange="fileEditor.updateSetting('tabSize', parseInt(this.value))">
+                        <option value="2">2 spaces</option>
+                        <option value="4">4 spaces</option>
+                        <option value="8">8 spaces</option>
+                    </select>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label class="setting-label">Word Wrap</label>
+                <div class="setting-control">
+                    <input type="checkbox" checked 
+                           onchange="fileEditor.updateSetting('wordWrap', this.checked)">
+                </div>
+            </div>
+            <div class="setting-item">
+                <label class="setting-label">Line Numbers</label>
+                <div class="setting-control">
+                    <input type="checkbox" checked 
+                           onchange="fileEditor.updateSetting('lineNumbers', this.checked)">
+                </div>
+            </div>
+            <div class="setting-item">
+                <label class="setting-label">Auto Save</label>
+                <div class="setting-control">
+                    <input type="checkbox" checked 
+                           onchange="fileEditor.updateSetting('autoSave', this.checked)">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Item Modal -->
+<div id="create-modal" class="fixed inset-0 z-50 items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-md p-6 bg-gray-800 border border-gray-700 rounded-2xl shadow-xl">
+        <h3 id="modal-title" class="text-xl font-semibold text-white mb-4">Create New</h3>
+        <form id="create-form" onsubmit="fileEditor.handleCreateSubmit(event)">
+            <input type="hidden" name="type" id="modal-item-type">
+            <input type="hidden" name="path" id="modal-base-path" value="">
+            <div>
+                <label for="modal-item-name" class="block text-sm font-medium text-gray-300 mb-1">Name</label>
+                <input type="text" name="name" id="modal-item-name" required
+                       class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end space-x-4 mt-6">
+                <button type="button" onclick="fileEditor.hideCreateModal()" 
+                        class="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition">
+                    Create
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Mobile Navigation -->
+<nav class="mobile-nav">
+    <div class="mobile-nav-item active" onclick="fileEditor.toggleSidebar()">
+        <i class="mobile-nav-icon" data-lucide="folder"></i>
+        <span class="mobile-nav-label">Files</span>
+    </div>
+    <div class="mobile-nav-item" onclick="fileEditor.saveActiveFile()">
+        <i class="mobile-nav-icon" data-lucide="save"></i>
+        <span class="mobile-nav-label">Save</span>
+    </div>
+    <div class="mobile-nav-item" onclick="fileEditor.showSearchDialog()">
+        <i class="mobile-nav-icon" data-lucide="search"></i>
+        <span class="mobile-nav-label">Search</span>
+    </div>
+    <div class="mobile-nav-item" onclick="fileEditor.showSettingsModal()">
+        <i class="mobile-nav-icon" data-lucide="settings"></i>
+        <span class="mobile-nav-label">Settings</span>
+    </div>
+</nav>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script>
+    // Initialize Lucide icons
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    });
+</script>
+{% endblock %}

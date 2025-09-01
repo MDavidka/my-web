@@ -15,6 +15,77 @@ from requests_oauthlib import OAuth2Session
 
 app = Flask(__name__)
 
+# Add new route for the modern file manager
+@app.route('/bot/<int:bot_index>/modern')
+@login_required
+def modern_file_manager(bot_index):
+    user_id = current_user.id
+    bot_path, bot_token, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return "Bot not found", 404
+
+    if not os.path.exists(bot_path):
+        os.makedirs(bot_path)
+    if not os.path.exists(os.path.join(bot_path, 'main.py')):
+        bot_code = f"# Bot Token: {bot_token}\n"
+        bot_code += """import discord
+import os
+
+TOKEN = ""
+with open(__file__, 'r') as f:
+    first_line = f.readline()
+    if 'Bot Token: ' in first_line:
+        TOKEN = first_line.split('Bot Token: ')[1].strip()
+
+if not TOKEN:
+    print("FATAL: Bot token not found in the first line of main.py.")
+    print("Please ensure the first line is '# Bot Token: YOUR_TOKEN_HERE'")
+    exit()
+
+class MyClient(discord.Client):
+    async def on_ready(self):
+        print(f'Logged on as {self.user}!')
+
+    async def on_message(self, message):
+        if message.author == self.user:
+            return
+
+        if message.content == '$ping':
+            await message.channel.send('pong')
+
+intents = discord.Intents.default()
+intents.message_content = True
+client = MyClient(intents=intents)
+try:
+    client.run(TOKEN)
+except discord.errors.LoginFailure:
+    print("FATAL: Improper token has been passed.")
+    print("Please make sure you have the correct bot token in the first line of main.py")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+"""
+        with open(os.path.join(bot_path, 'main.py'), 'w') as f:
+            f.write(bot_code)
+
+    file_tree = get_file_tree(bot_path, bot_path)
+
+    # Get bot status
+    bot_key = (user_id, bot_index)
+    status = "STOPPED"
+    ram = 0
+    if bot_key in bot_processes and bot_processes[bot_key].poll() is None:
+        try:
+            p = psutil.Process(bot_processes[bot_key].pid)
+            status = "RUNNING"
+            ram = round(p.memory_info().rss / (1024 * 1024), 2)
+        except psutil.NoSuchProcess:
+            status = "STOPPED"
+            if bot_key in bot_processes:
+                del bot_processes[bot_key]
+
+    bot_status = {'status': status, 'ram': ram}
+
+    return render_template("modern_file_manager.html", items=file_tree, bot_index=bot_index, bot_status=bot_status)
+
 # Config
 REPO_URL = "https://github.com/MDavidka/my-web.git"
 BRANCH = "feature/modern-file-editor"
@@ -631,6 +702,101 @@ def api_stop_bot(bot_index):
             del bot_processes[bot_key]
 
     return jsonify(success=True, message=message)
+
+@app.route('/bot/<int:bot_index>/upload', methods=['POST'])
+@login_required
+def upload_file(bot_index):
+    user_id = current_user.id
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return jsonify(success=False, message="Bot not found"), 404
+
+    if 'file' not in request.files:
+        return jsonify(success=False, message="No file provided"), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify(success=False, message="No file selected"), 400
+
+    upload_path = request.form.get('path', '')
+    target_dir = get_safe_path(bot_path, upload_path)
+    if not target_dir:
+        return jsonify(success=False, message="Invalid path"), 400
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    file_path = os.path.join(target_dir, file.filename)
+    
+    try:
+        file.save(file_path)
+        return jsonify(success=True, message=f"File '{file.filename}' uploaded successfully")
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+
+@app.route('/bot/<int:bot_index>/download')
+@login_required
+def download_file(bot_index):
+    user_id = current_user.id
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return "Bot not found", 404
+
+    file_path_rel = request.args.get('path')
+    if not file_path_rel:
+        return "Path parameter required", 400
+
+    file_path_abs = get_safe_path(bot_path, file_path_rel)
+    if not file_path_abs or not os.path.exists(file_path_abs):
+        return "File not found", 404
+
+    return send_file(file_path_abs, as_attachment=True)
+
+@app.route('/bot/<int:bot_index>/search', methods=['POST'])
+@login_required
+def search_files(bot_index):
+    user_id = current_user.id
+    bot_path, _, _ = get_bot_info(user_id, bot_index)
+    if not bot_path: return jsonify(error="Bot not found"), 404
+
+    data = request.get_json()
+    query = data.get('query', '')
+    case_sensitive = data.get('case_sensitive', False)
+    use_regex = data.get('regex', False)
+    file_pattern = data.get('file_pattern', '*')
+
+    results = []
+    
+    try:
+        import re
+        import fnmatch
+        
+        search_pattern = query if use_regex else re.escape(query)
+        flags = 0 if case_sensitive else re.IGNORECASE
+        regex_pattern = re.compile(search_pattern, flags)
+        
+        for root, dirs, files in os.walk(bot_path):
+            for file in files:
+                if fnmatch.fnmatch(file, file_pattern):
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, bot_path)
+                    
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            
+                        for line_num, line in enumerate(content.split('\n'), 1):
+                            if regex_pattern.search(line):
+                                results.append({
+                                    'file': rel_path,
+                                    'line': line_num,
+                                    'content': line.strip(),
+                                    'match': query
+                                })
+                    except (UnicodeDecodeError, PermissionError):
+                        continue
+        
+        return jsonify(results=results)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 @app.route('/api/docs')
 def api_docs():

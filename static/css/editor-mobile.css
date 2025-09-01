@@ -1,0 +1,308 @@
+/* Mobile-specific optimizations for the file editor */
+
+@media (max-width: 768px) {
+    /* Hide desktop elements */
+    .breadcrumb {
+        display: none;
+    }
+    
+    /* Mobile toolbar adjustments */
+    .editor-toolbar {
+        padding: 0.5rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    
+    .mobile-only {
+        display: block;
+    }
+    
+    /* Tab scrolling on mobile */
+    .editor-tabs-container {
+        position: relative;
+    }
+    
+    .editor-tabs {
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        scroll-behavior: smooth;
+    }
+    
+    .editor-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .editor-tab {
+        min-width: 120px;
+        flex-shrink: 0;
+    }
+    
+    /* Mobile tab navigation arrows */
+    .tab-nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--editor-tab-bg);
+        border: 1px solid var(--editor-border);
+        color: var(--editor-text);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.2s ease;
+    }
+    
+    .tab-nav-arrow:hover {
+        background: var(--editor-accent);
+        color: white;
+    }
+    
+    .tab-nav-left {
+        left: 8px;
+    }
+    
+    .tab-nav-right {
+        right: 8px;
+    }
+    
+    /* Mobile sidebar overlay */
+    .editor-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .editor-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    /* Sidebar backdrop */
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .sidebar-backdrop.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    /* Mobile context menu adjustments */
+    .context-menu {
+        min-width: 200px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+    
+    .context-menu-items li {
+        padding: 1rem;
+        min-height: 44px; /* Touch target size */
+    }
+    
+    /* Mobile editor adjustments */
+    .CodeMirror {
+        font-size: 16px !important; /* Prevent zoom on iOS */
+        line-height: 1.4 !important;
+    }
+    
+    .CodeMirror-gutters {
+        min-width: 40px;
+    }
+    
+    /* Mobile welcome screen */
+    .welcome-content {
+        padding: 1rem;
+    }
+    
+    .welcome-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .welcome-actions .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.75rem 1rem;
+        font-size: 16px;
+    }
+    
+    /* Mobile settings modal */
+    .settings-modal-content {
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+    
+    .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 1rem 0;
+    }
+    
+    .setting-control {
+        width: 100%;
+    }
+    
+    .setting-control select,
+    .setting-control input {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 16px;
+    }
+    
+    /* Mobile toast adjustments */
+    #toast-container {
+        top: auto;
+        bottom: 80px; /* Above mobile nav */
+        left: 1rem;
+        right: 1rem;
+    }
+    
+    .toast-message {
+        font-size: 14px;
+        padding: 0.75rem 1rem;
+    }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .editor-sidebar {
+        width: 240px;
+    }
+    
+    .editor-tab {
+        min-width: 100px;
+        max-width: 150px;
+    }
+    
+    .CodeMirror {
+        font-size: 15px !important;
+    }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1400px) {
+    .modern-editor {
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    .editor-sidebar {
+        width: 320px;
+    }
+    
+    .CodeMirror {
+        font-size: 15px !important;
+    }
+}
+
+/* Touch-specific styles */
+@media (hover: none) and (pointer: coarse) {
+    /* Increase touch targets */
+    .tree-item-content,
+    .editor-tab,
+    .btn-icon {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Remove hover effects on touch devices */
+    .tree-item-content:hover,
+    .editor-tab:hover,
+    .btn-icon:hover {
+        background: initial;
+        color: initial;
+    }
+    
+    /* Add active states for touch feedback */
+    .tree-item-content:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .editor-tab:active {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .btn:active {
+        transform: scale(0.98);
+    }
+}
+
+/* Landscape phone adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .modern-editor {
+        height: calc(100vh - 60px);
+    }
+    
+    .mobile-nav {
+        height: 50px;
+    }
+    
+    .mobile-nav-item {
+        padding: 0.25rem;
+    }
+    
+    .mobile-nav-icon {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .mobile-nav-label {
+        font-size: 0.6rem;
+    }
+}
+
+/* Dark mode adjustments for mobile */
+@media (max-width: 768px) and (prefers-color-scheme: dark) {
+    .editor-sidebar {
+        background: var(--editor-bg);
+    }
+    
+    .mobile-nav {
+        background: var(--editor-bg);
+        border-top-color: var(--editor-border);
+    }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+    /* Larger focus indicators */
+    .btn:focus,
+    .tree-item-content:focus,
+    .editor-tab:focus {
+        outline: 3px solid var(--editor-accent);
+        outline-offset: 2px;
+    }
+    
+    /* Better contrast for small screens */
+    .tree-item-content {
+        color: var(--editor-text);
+    }
+    
+    .tab-name {
+        font-weight: 500;
+    }
+}
