@@ -80,16 +80,18 @@
                 <p class="text-sm">You can also create new files or folders using the icons above.</p>
             </div>
         </div>
-        <div id="console-container" class="relative flex flex-col border-t border-gray-700">
-            <div id="console-resize-handle" class="absolute top-0 left-0 w-full h-2 cursor-row-resize -translate-y-1/2"></div>
-            <div class="flex items-center justify-between p-2 bg-gray-900/30">
+        <div id="console-container" class="flex flex-col border-t border-gray-700">
+            <div id="console-header" class="flex items-center justify-between p-2 bg-gray-900/30 cursor-row-resize">
                 <span class="font-mono text-sm text-gray-400">Console</span>
                 <div class="flex items-center space-x-2">
-                    <button hx-post="{{ url_for('start_bot', bot_index=bot_index) }}" hx-swap="none" class="px-3 py-1 text-sm rounded-md bg-white/10 border border-white/20 hover:bg-white/20 transition">Start</button>
-                    <button hx-post="{{ url_for('stop_bot', bot_index=bot_index) }}" hx-swap="none" class="px-3 py-1 text-sm rounded-md bg-white/10 border border-white/20 hover:bg-white/20 transition">Stop</button>
+                    <button hx-post="{{ url_for('start_bot', bot_index=bot_index) }}" hx-swap="none" class="px-4 py-2 text-sm rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Start</button>
+                    <button hx-post="{{ url_for('stop_bot', bot_index=bot_index) }}" hx-swap="none" class="px-4 py-2 text-sm rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Stop</button>
+                    <button id="console-toggle" class="p-2 rounded-md hover:bg-white/20">
+                        <svg class="w-5 h-5" id="console-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                    </button>
                 </div>
             </div>
-            <pre id="console-output" class="h-48 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto">Welcome to the console.</pre>
+            <pre id="console-output" class="h-48 bg-gray-900 p-4 font-mono text-sm text-gray-300 overflow-y-auto resize-none">Welcome to the console.</pre>
         </div>
     </main>
 </div>
@@ -100,9 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleButton = document.getElementById('sidebar-toggle');
     const fileTree = document.querySelector('.file-tree');
     const consoleContainer = document.getElementById('console-container');
+    const consoleHeader = document.getElementById('console-header');
     const consoleOutput = document.getElementById('console-output');
-    const resizeHandle = document.getElementById('console-resize-handle');
+    const consoleToggleButton = document.getElementById('console-toggle');
+    const consoleToggleIcon = document.getElementById('console-toggle-icon');
     let isResizing = false;
+    let isMinimized = false;
 
     // Mobile sidebar toggle
     if (sidebar && toggleButton) {
@@ -135,11 +140,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Resizable console
-    if (resizeHandle && consoleOutput) {
-        resizeHandle.addEventListener('mousedown', (e) => {
+    // Console resize
+    if (consoleHeader && consoleOutput) {
+        consoleHeader.addEventListener('mousedown', (e) => {
+            // Don't resize if clicking on a button
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                return;
+            }
+
             isResizing = true;
-            document.body.style.userSelect = 'none'; // Prevent text selection while dragging
+            document.body.style.userSelect = 'none';
 
             const startY = e.clientY;
             const startHeight = consoleOutput.offsetHeight;
@@ -163,6 +173,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
+        });
+    }
+
+    // Console minimize/maximize toggle
+    if (consoleToggleButton && consoleOutput && consoleToggleIcon) {
+        consoleToggleButton.addEventListener('click', () => {
+            isMinimized = !isMinimized;
+            if (isMinimized) {
+                consoleOutput.style.height = '0px';
+                consoleToggleIcon.innerHTML = '<path fill-rule="evenodd" d="M10 5a1 1 0 011 1v8a1 1 0 11-2 0V6a1 1 0 011-1z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />';
+            } else {
+                consoleOutput.style.height = '12rem'; // 192px / h-48
+                consoleToggleIcon.innerHTML = '<path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />';
+            }
         });
     }
 });
