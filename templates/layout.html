@@ -23,8 +23,7 @@
                     <a href="{{ url_for('api_docs') }}">API Docs</a>
                     <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
                 {% else %}
-                    <a href="{{ url_for('login') }}">Login</a>
-                    <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
                 {% endif %}
             </nav>
         </div>

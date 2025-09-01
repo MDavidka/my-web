@@ -11,6 +11,7 @@ from datetime import datetime
 from functools import wraps
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from requests_oauthlib import OAuth2Session
 
 app = Flask(__name__)
 
@@ -18,6 +19,16 @@ app = Flask(__name__)
 REPO_URL = "https://github.com/MDavidka/my-web.git"
 BRANCH = "feature/modern-file-editor"
 DEST_DIR = "/home/container"
+
+# --- Discord OAuth2 Config ---
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' # To allow http:// for local testing
+app.config['DISCORD_CLIENT_ID'] = '1378029781177598042'
+app.config['DISCORD_CLIENT_SECRET'] = 'x2yUzarCa0fX-muJWyBfJkZFYwrjVjyP'
+app.config['DISCORD_REDIRECT_URI'] = 'http://localhost:30158/login/discord/callback'
+app.config['DISCORD_API_BASE_URL'] = 'https://discord.com/api/v10'
+app.config['DISCORD_AUTH_URL'] = 'https://discord.com/oauth2/authorize'
+app.config['DISCORD_TOKEN_URL'] = 'https://discord.com/api/oauth2/token'
+app.config['DISCORD_SCOPE'] = ['identify', 'email']
 
 # --- App Configuration ---
 app.config['MONGO_URI'] = "mongodb+srv://Cebelian12:testke12@cluster0.0p3pv8x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
@@ -105,48 +116,64 @@ def get_last_modified(path):
     return latest_mtime if latest_mtime > 0 else None
 
 # --- Auth Routes ---
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login')
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('list_bots'))
-    if request.method == 'POST':
-        db = get_db()
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user_data = db.users.find_one({'email': email})
-
-        if user_data and check_password_hash(user_data.get('password_hash', ''), password):
-            user = User(user_data)
-            login_user(user)
-            return redirect(url_for('list_bots'))
-        else:
-            flash('Invalid email or password.', 'danger')
     return render_template('login.html')
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('list_bots'))
-    if request.method == 'POST':
-        db = get_db()
-        email = request.form.get('email')
-        password = request.form.get('password')
+@app.route('/login/discord')
+def discord_login():
+    discord = OAuth2Session(
+        app.config['DISCORD_CLIENT_ID'],
+        redirect_uri=app.config['DISCORD_REDIRECT_URI'],
+        scope=app.config['DISCORD_SCOPE']
+    )
+    authorization_url, state = discord.authorization_url(app.config['DISCORD_AUTH_URL'])
+    return redirect(authorization_url)
 
-        if db.users.find_one({'email': email}):
-            flash('You already have an account. Please log in.', 'warning')
-            return redirect(url_for('login'))
-
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-        new_user = {
-            'email': email,
-            'password_hash': hashed_password,
-            'servers': [], # New users start with no bots
-            'api_key': secrets.token_hex(24)
-        }
-        db.users.insert_one(new_user)
-        flash('Registration successful! Please log in.', 'success')
+@app.route('/login/discord/callback')
+def discord_callback():
+    if 'error' in request.args:
+        flash('Login canceled or failed.', 'danger')
         return redirect(url_for('login'))
-    return render_template('register.html')
+
+    discord = OAuth2Session(
+        app.config['DISCORD_CLIENT_ID'],
+        redirect_uri=app.config['DISCORD_REDIRECT_URI'],
+        scope=app.config['DISCORD_SCOPE']
+    )
+
+    try:
+        token = discord.fetch_token(
+            app.config['DISCORD_TOKEN_URL'],
+            client_secret=app.config['DISCORD_CLIENT_SECRET'],
+            authorization_response=request.url
+        )
+    except Exception as e:
+        flash(f'An error occurred while fetching the token: {e}', 'danger')
+        return redirect(url_for('login'))
+
+    user_info_response = discord.get(app.config['DISCORD_API_BASE_URL'] + '/users/@me')
+    if not user_info_response.ok:
+        flash('Failed to fetch user information from Discord.', 'danger')
+        return redirect(url_for('login'))
+
+    user_info = user_info_response.json()
+    user_email = user_info.get('email')
+
+    if not user_email:
+        flash('Could not retrieve email from Discord. Please ensure your Discord account has a verified email.', 'danger')
+        return redirect(url_for('login'))
+
+    db = get_db()
+    user_data = db.users.find_one({'email': user_email})
+
+    if user_data:
+        user = User(user_data)
+        login_user(user)
+        return redirect(url_for('list_bots'))
+    else:
+        flash(f'No account found with the email {user_email}. Please ensure your Discord email is associated with an account.', 'warning')
+        return redirect(url_for('login'))
 
 @app.route('/logout')
 @login_required

@@ -5,3 +5,4 @@ certifi
 Flask-Login
 Werkzeug
 dnspython
+requests-oauthlib
